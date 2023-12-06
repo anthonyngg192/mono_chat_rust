@@ -1,0 +1,13 @@
+use crate::{
+    database::Database,
+    models::{report::PartialReport, Report},
+    Result,
+};
+
+impl Report {
+    /// Update report data
+    pub async fn update(&mut self, db: &Database, partial: PartialReport) -> Result<()> {
+        self.apply_options(partial.clone());
+        db.update_report(&self.id, &partial).await
+    }
+}
