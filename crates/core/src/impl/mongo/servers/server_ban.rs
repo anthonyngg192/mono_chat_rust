@@ -22,7 +22,6 @@ impl AbstractServerBan for MongoDb {
         .await
     }
 
-    /// Fetch all bans in a server
     async fn fetch_bans(&self, server: &str) -> Result<Vec<ServerBan>> {
         self.find(
             COL,
@@ -33,12 +32,10 @@ impl AbstractServerBan for MongoDb {
         .await
     }
 
-    /// Insert new ban into database
     async fn insert_ban(&self, ban: &ServerBan) -> Result<()> {
         self.insert_one(COL, ban).await.map(|_| ())
     }
 
-    /// Delete a ban from the database
     async fn delete_ban(&self, id: &MemberCompositeKey) -> Result<()> {
         self.delete_one(
             COL,

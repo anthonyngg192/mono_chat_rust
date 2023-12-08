@@ -1,10 +1,15 @@
+use std::collections::HashMap;
+
 use crate::{
     database::Database,
     events::client::EventV1,
     models::{
-        channel::{FieldsChannel, PartialChannel},
+        channel::{
+            DataCreateServerChannel, FieldsChannel, LegacyServerChannelType, PartialChannel,
+        },
         message::SystemMessage,
-        Channel,
+        server::PartialServer,
+        Channel, Server,
     },
     permissions::defn::OverrideField,
     tasks::ack::AckEvent,
@@ -288,5 +293,63 @@ impl Channel {
             }
             _ => Err(Error::InvalidOperation),
         }
+    }
+
+    pub async fn create_server_channel(
+        db: &Database,
+        server: &mut Server,
+        data: DataCreateServerChannel,
+        update_server: bool,
+    ) -> Result<Channel> {
+        // let config = config().await;
+        // if server.channels.len() > config.features.limits.default.server_channels {
+        //     return Err(create_error!(TooManyChannels {
+        //         max: config.features.limits.default.server_channels,
+        //     }));
+        // };
+
+        let id = ulid::Ulid::new().to_string();
+        let channel = match data.channel_type {
+            LegacyServerChannelType::Text => Channel::TextChannel {
+                id: id.clone(),
+                server: server.id.to_owned(),
+                name: data.name,
+                description: data.description,
+                icon: None,
+                last_message_id: None,
+                default_permissions: None,
+                role_permissions: HashMap::new(),
+            },
+            LegacyServerChannelType::Voice => Channel::VoiceChannel {
+                id: id.clone(),
+                server: server.id.to_owned(),
+                name: data.name,
+                description: data.description,
+                icon: None,
+                default_permissions: None,
+                role_permissions: HashMap::new(),
+            },
+        };
+
+        db.insert_channel(&channel).await?;
+
+        if update_server {
+            server
+                .update(
+                    db,
+                    PartialServer {
+                        channels: Some([server.channels.clone(), [id].into()].concat()),
+                        ..Default::default()
+                    },
+                    vec![],
+                )
+                .await?;
+
+            EventV1::ChannelCreate(channel.clone())
+                .p(server.id.clone())
+                .await;
+        }
+
+        Ok(channel)
     }
 }

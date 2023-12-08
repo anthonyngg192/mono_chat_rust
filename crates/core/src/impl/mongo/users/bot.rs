@@ -53,7 +53,6 @@ impl AbstractBot for MongoDb {
     }
 
     async fn get_number_of_bots_by_user(&self, user_id: &str) -> Result<usize> {
-        // ! FIXME: move this to generic?
         self.fetch_bots_by_user(user_id).await.map(|x| x.len())
     }
 }

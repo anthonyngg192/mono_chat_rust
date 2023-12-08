@@ -10,9 +10,9 @@ use crate::{
     Error, Result,
 };
 use futures::try_join;
+use ulid::Ulid;
 
 impl User {
-    /// Update user data
     pub async fn update<'a>(
         &mut self,
         db: &Database,
@@ -38,7 +38,6 @@ impl User {
         Ok(())
     }
 
-    /// Remove a field from User object
     pub fn remove(&mut self, field: &FieldsUser) {
         match field {
             FieldsUser::Avatar => self.avatar = None,
@@ -126,7 +125,6 @@ impl User {
             .collect::<Vec<User>>())
     }
 
-    /// Mark as deleted
     pub async fn mark_deleted(&mut self, db: &Database) -> Result<()> {
         self.update(
             db,
@@ -146,7 +144,6 @@ impl User {
         .await
     }
 
-    /// Mutate user object with given permission
     #[must_use]
     pub fn apply_permission(mut self, permission: &UserPerms) -> User {
         if !permission.get_view_profile() {
@@ -156,7 +153,6 @@ impl User {
         self
     }
 
-    /// Helper function to apply relationship and permission
     #[must_use]
     pub fn with_perspective(self, perspective: &User, permission: &UserPerms) -> User {
         self.with_relationship(perspective)
@@ -169,26 +165,19 @@ impl User {
         user.apply_permission(&permissions)
     }
 
-    /// Check if this user can acquire another server
     pub async fn can_acquire_server(&self, db: &Database) -> Result<bool> {
         // ! FIXME: hardcoded max server count
         Ok(db.fetch_server_count(&self.id).await? <= 100)
     }
 
-    /// Sanities and validate a username can be used
     pub async fn validate_username(db: &Database, username: String) -> Result<String> {
-        // Trim surrounding spaces
         let username = username.trim().to_string();
-
-        // Make sure username is still at least 3 characters
         if username.len() < 2 {
             return Err(Error::InvalidUsername);
         }
 
-        // Copy the username for validation
         let username_lowercase = username.to_lowercase();
 
-        // Ensure the username itself isn't blocked
         const BLOCKED_USERNAMES: &[&str] = &["admin", "revolt"];
 
         for username in BLOCKED_USERNAMES {
@@ -197,7 +186,6 @@ impl User {
             }
         }
 
-        // Ensure none of the following substrings show up in the username
         const BLOCKED_SUBSTRINGS: &[&str] = &["```"];
 
         for substr in BLOCKED_SUBSTRINGS {
@@ -206,7 +194,6 @@ impl User {
             }
         }
 
-        // Make sure the username isn't taken
         if db.is_username_taken(&username).await? {
             return Err(Error::UsernameTaken);
         }
@@ -214,7 +201,6 @@ impl User {
         Ok(username)
     }
 
-    /// Update a user's username
     pub async fn update_username(&mut self, db: &Database, username: String) -> Result<()> {
         self.update(
             db,
@@ -227,7 +213,6 @@ impl User {
         .await
     }
 
-    /// Apply a certain relationship between two users
     pub async fn apply_relationship(
         &self,
         db: &Database,
@@ -267,7 +252,6 @@ impl User {
         Ok(())
     }
 
-    /// Add another user as a friend
     pub async fn add_friend(&self, db: &Database, target: &mut User) -> Result<()> {
         match get_relationship(self, &target.id) {
             RelationshipStatus::User => Err(Error::NoEffect),
@@ -296,7 +280,6 @@ impl User {
         }
     }
 
-    /// Remove another user as a friend
     pub async fn remove_friend(&self, db: &Database, target: &mut User) -> Result<()> {
         match get_relationship(self, &target.id) {
             RelationshipStatus::Friend
@@ -314,7 +297,6 @@ impl User {
         }
     }
 
-    /// Block another user
     pub async fn block_user(&self, db: &Database, target: &mut User) -> Result<()> {
         match get_relationship(self, &target.id) {
             RelationshipStatus::User | RelationshipStatus::Blocked => Err(Error::NoEffect),
@@ -342,7 +324,6 @@ impl User {
         }
     }
 
-    /// Unblock another user
     pub async fn unblock_user(&self, db: &Database, target: &mut User) -> Result<()> {
         match get_relationship(self, &target.id) {
             RelationshipStatus::Blocked => match get_relationship(target, &self.id) {
@@ -370,7 +351,6 @@ impl User {
         }
     }
 
-    /// Check whether this user has another user blocked
     pub fn has_blocked(&self, user: &str) -> bool {
         matches!(
             get_relationship(self, user),
@@ -378,7 +358,6 @@ impl User {
         )
     }
 
-    /// Find a user from a given token and hint
     #[async_recursion]
     pub async fn from_token(db: &Database, token: &str, hint: UserHint) -> Result<User> {
         match hint {
@@ -392,5 +371,31 @@ impl User {
                 }
             }
         }
+    }
+
+    pub async fn create<I, D>(
+        self,
+        db: &Database,
+        username: String,
+        account_id: I,
+        data: D,
+    ) -> Result<User>
+    where
+        I: Into<Option<String>>,
+        D: Into<Option<PartialUser>>,
+    {
+        let username = User::validate_username(db, username).await?;
+        let mut user = User {
+            id: account_id.into().unwrap_or_else(|| Ulid::new().to_string()),
+            username,
+            ..Default::default()
+        };
+
+        if let Some(data) = data.into() {
+            user.apply_options(data);
+        }
+
+        db.insert_user(&user).await?;
+        Ok(user)
     }
 }

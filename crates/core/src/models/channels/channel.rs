@@ -4,8 +4,17 @@ use std::collections::HashMap;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+extern crate serde;
 
 use crate::{models::File, permissions::defn::OverrideField};
+
+pub enum ChannelType {
+    SavedMessages,
+    DirectMessage,
+    Group,
+    ServerChannel,
+    Unknown,
+}
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 #[serde(tag = "channel_type")]
@@ -136,4 +145,24 @@ pub struct PartialChannel {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_message_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub enum LegacyServerChannelType {
+    Text,
+    Voice,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "data_server_channel")]
+#[cfg_attr(feature = "validator", derive(validator::Validate))]
+pub struct DataCreateServerChannel {
+    #[serde(rename = "type")]
+    pub channel_type: LegacyServerChannelType,
+
+    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 32)))]
+    pub name: String,
+
+    #[cfg_attr(feature = "validator", validate(length(min = 0, max = 1024)))]
+    pub description: Option<String>,
 }

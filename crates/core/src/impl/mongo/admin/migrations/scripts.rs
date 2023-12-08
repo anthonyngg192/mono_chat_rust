@@ -10,7 +10,7 @@ use mongodb::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    permissions::defn::{Permission, DEFAULT_PERMISSION_SERVER},
+    permissions::defn::{ChannelPermission, DEFAULT_PERMISSION_SERVER},
     r#impl::mongo::MongoDb,
 };
 
@@ -511,7 +511,7 @@ pub async fn run_migrations(db: &MongoDb, revision: i32) -> i32 {
                 DEFAULT_PERMISSION_SERVER.bitxor(if has_send {
                     0
                 } else {
-                    Permission::SendMessage as u64
+                    ChannelPermission::SendMessage as u64
                 }) as i64,
             );
 
@@ -571,7 +571,7 @@ pub async fn run_migrations(db: &MongoDb, revision: i32) -> i32 {
                     doc! {
                         "default_permissions": {
                             "a": 0_i64,
-                            "d": Permission::SendMessage as i64
+                            "d": ChannelPermission::SendMessage as i64
                         }
                     },
                 );

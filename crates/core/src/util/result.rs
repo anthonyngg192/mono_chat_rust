@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use validator::ValidationErrors;
 
-use crate::permissions::defn::{Permission, UserPermission};
+use crate::permissions::defn::{ChannelPermission, UserPermission};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub enum Error {
@@ -56,7 +56,7 @@ pub enum Error {
     CannotReportYourself,
 
     MissingPermission {
-        permission: Permission,
+        permission: ChannelPermission,
     },
     MissingUserPermission {
         permission: UserPermission,
@@ -83,6 +83,8 @@ pub enum Error {
         #[serde(skip_serializing, skip_deserializing)]
         error: ValidationErrors,
     },
+
+    AlreadyInServer,
 }
 
 impl Error {
@@ -92,8 +94,8 @@ impl Error {
         })
     }
 
-    pub fn from_permission<T>(permission: Permission) -> Result<T> {
-        Err(if let Permission::ViewChannel = permission {
+    pub fn from_permission<T>(permission: ChannelPermission) -> Result<T> {
+        Err(if let ChannelPermission::ViewChannel = permission {
             Error::NotFound
         } else {
             Error::MissingPermission { permission }
@@ -170,6 +172,8 @@ impl<'r> Responder<'r, 'static> for Error {
             Error::NotFound => Status::NotFound,
             Error::NoEffect => Status::Ok,
             Error::FailedValidation { .. } => Status::BadRequest,
+
+            Error::AlreadyInServer => Status::Conflict,
         };
 
         let string = json!(self).to_string();
@@ -180,4 +184,41 @@ impl<'r> Responder<'r, 'static> for Error {
             .status(status)
             .ok()
     }
+}
+
+#[macro_export]
+macro_rules! create_error {
+    ( $error: ident $( $tt:tt )? ) => {
+        $crate::Error {
+            error_type: $crate::Error::$error $( $tt )?,
+            location: format!("{}:{}:{}", file!(), line!(), column!()),
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! create_database_error {
+    ( $operation: expr, $collection: expr ) => {
+        create_error!(DatabaseError {
+            operation: $operation.to_string(),
+            collection: $collection.to_string()
+        })
+    };
+}
+
+#[macro_export]
+#[cfg(debug_assertions)]
+macro_rules! query {
+    ( $self: ident, $type: ident, $collection: expr, $($rest:expr),+ ) => {
+        Ok($self.$type($collection, $($rest),+).await.unwrap())
+    };
+}
+
+#[macro_export]
+#[cfg(not(debug_assertions))]
+macro_rules! query {
+    ( $self: ident, $type: ident, $collection: expr, $($rest:expr),+ ) => {
+        $self.$type($collection, $($rest),+).await
+            .map_err(|_| create_database_error!(stringify!($type), $collection))
+    };
 }

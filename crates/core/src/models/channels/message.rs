@@ -21,17 +21,13 @@ pub fn if_false(t: &bool) -> bool {
     !t
 }
 
-/// # Reply
-///
-/// Representation of a message reply before it is sent.
 #[derive(Clone, Debug)]
 pub struct Rely {
     pub id: String,
     pub mention: bool,
 }
 
-/// Representation of a text embed before it is sent.
-#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
+#[derive(Validate, Serialize, Deserialize, JsonSchema, Clone, Debug, Default)]
 pub struct SendableEmbed {
     #[validate(length(min = 1, max = 128))]
     pub icon_url: Option<String>,
@@ -45,7 +41,6 @@ pub struct SendableEmbed {
     pub colour: Option<String>,
 }
 
-/// Representation of a system event message
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 #[serde(tag = "Type")]
 pub enum SystemMessage {
@@ -83,7 +78,6 @@ pub enum SystemMessage {
     ChannelOwnershipChanged { from: String, to: String },
 }
 
-/// Name and / or avatar override information
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, Validate)]
 pub struct Masquerade {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -99,8 +93,7 @@ pub struct Masquerade {
     pub colour: Option<String>,
 }
 
-/// Information to guide interactions on this message
-#[derive(Serialize, Deserialize, Debug, Clone, Validate, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Validate, Default, JsonSchema)]
 pub struct Interactions {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub reactions: Option<IndexSet<String>>,
@@ -109,7 +102,6 @@ pub struct Interactions {
     pub restrict_reactions: bool,
 }
 
-/// Representation of A Message
 #[derive(Serialize, Deserialize, Debug, Clone, OptionalStruct, Default)]
 #[optional_derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[optional_name = "PartialMessage"]
@@ -147,8 +139,8 @@ pub struct Message {
     #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
     pub reactions: IndexMap<String, IndexSet<String>>,
 
-    // #[serde(skip_serializing_if = "Interactions::is_default", default)]
-    pub interaction: Interactions,
+    #[serde(skip_serializing_if = "Interactions::is_default", default)]
+    pub interactions: Interactions,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub masquerade: Option<Masquerade>,
@@ -176,28 +168,18 @@ pub enum MessageTimePeriod {
     },
 }
 
-/// # Message Filter
 #[derive(Serialize, Deserialize, JsonSchema, Default)]
 pub struct MessageFilter {
-    /// Parent channel ID
     pub channel: Option<String>,
-    /// Message author ID
     pub author: Option<String>,
-    /// Search query
     pub query: Option<String>,
 }
 
-/// # Message Query
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct MessageQuery {
-    /// Maximum number of messages to fetch
-    ///
-    /// For fetching nearby messages, this is \`(limit + 1)\`.
     pub limit: Option<i64>,
-    /// Filter to apply
     #[serde(flatten)]
     pub filter: MessageFilter,
-    /// Time period to fetch
     #[serde(flatten)]
     pub time_period: MessageTimePeriod,
 }
@@ -219,3 +201,42 @@ pub enum BulkMessageResponse {
 pub struct AppendMessage {
     pub embeds: Option<Vec<Embed>>,
 }
+
+#[derive(Validate, Serialize, Deserialize, JsonSchema)]
+
+pub struct DataMessageSend {
+    #[validate(length(min = 1, max = 64))]
+    pub nonce: Option<String>,
+
+    #[validate(length(min = 0, max = 2000))]
+    pub content: Option<String>,
+
+    pub attachments: Option<Vec<String>>,
+
+    pub replies: Option<Vec<Reply>>,
+
+    #[validate]
+    pub embeds: Option<Vec<SendableEmbed>>,
+
+    #[validate]
+    pub masquerade: Option<Masquerade>,
+    pub interactions: Option<Interactions>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
+pub struct Reply {
+    pub id: String,
+    pub mention: bool,
+}
+
+pub enum MessageAuthor<'a> {
+    User(&'a User),
+    // Webhook(&'a Webhook),
+    System {
+        username: &'a str,
+        avatar: Option<&'a str>,
+    },
+}
+
+pub static RE_MENTION: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"<@([0-9A-HJKMNP-TV-Z]{26})>").unwrap());

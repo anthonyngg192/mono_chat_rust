@@ -8,23 +8,23 @@ use crate::{
     events::client::EventV1,
     models::{
         message::{
-            AppendMessage, BulkMessageResponse, Interactions, PartialMessage, SendableEmbed,
-            SystemMessage,
+            AppendMessage, BulkMessageResponse, DataMessageSend, Interactions, MessageAuthor,
+            PartialMessage, Reply, SendableEmbed, SystemMessage, RE_MENTION,
         },
-        Channel, Emoji, Message, User,
+        Channel, Emoji, File, Message, User,
     },
-    permissions::{defn::Permission, PermissionCalculator},
+    permissions::{defn::ChannelPermission, PermissionCalculator},
     presence::presence_filter_online,
-    tasks::ack::AckEvent,
+    tasks::{self, ack::AckEvent},
     types::{
         january::{Embed, Text},
         push::PushNotification,
     },
+    util::idempotency::IdempotencyKey,
     Error, Result,
 };
 
 impl Message {
-    /// Create a message
     pub async fn create_no_web_push(
         &mut self,
         db: &Database,
@@ -33,10 +33,8 @@ impl Message {
     ) -> Result<()> {
         db.insert_message(self).await?;
 
-        // Fan out events
         EventV1::Message(self.clone()).p(channel.to_string()).await;
 
-        // Update last_message_id
         crate::tasks::last_message_id::queue(
             channel.to_string(),
             self.id.to_string(),
@@ -44,7 +42,6 @@ impl Message {
         )
         .await;
 
-        // Add mentions for affected users
         if let Some(mentions) = &self.mentions {
             for user in mentions {
                 crate::tasks::ack::queue(
@@ -80,7 +77,6 @@ impl Message {
         Ok(())
     }
 
-    /// Create a message and Web Push events
     pub async fn create(
         &mut self,
         db: &Database,
@@ -90,7 +86,6 @@ impl Message {
         self.create_no_web_push(db, channel.id(), channel.is_direct_dm())
             .await?;
 
-        // Push out Web Push notifications
         crate::tasks::web_push::queue(
             {
                 let mut target_ids = vec![];
@@ -152,7 +147,6 @@ impl Message {
         Ok(())
     }
 
-    /// Bulk delete messages
     pub async fn bulk_delete(db: &Database, channel: &str, ids: Vec<String>) -> Result<()> {
         db.delete_messages(channel, ids.clone()).await?;
         EventV1::BulkMessageDelete {
@@ -164,7 +158,6 @@ impl Message {
         Ok(())
     }
 
-    /// Validate the sum of content of a message is under threshold
     pub fn validate_sum(
         content: &Option<String>,
         embeds: &Option<Vec<SendableEmbed>>,
@@ -194,7 +187,7 @@ impl Message {
             return Err(Error::InvalidOperation);
         }
 
-        if !self.interaction.can_use(emoji) {
+        if !self.interactions.can_use(emoji) {
             return Err(Error::InvalidOperation);
         }
 
@@ -214,9 +207,7 @@ impl Message {
         db.add_reaction(&self.id, emoji, &user.id).await
     }
 
-    /// Remove a reaction from a message
     pub async fn remove_reaction(&self, db: &Database, user: &str, emoji: &str) -> Result<()> {
-        // Check if it actually exists
         let empty = if let Some(users) = self.reactions.get(emoji) {
             if !users.contains(user) {
                 return Err(Error::NotFound);
@@ -227,7 +218,6 @@ impl Message {
             return Err(Error::NotFound);
         };
 
-        // Send reaction event
         EventV1::MessageUnreact {
             id: self.id.to_string(),
             channel_id: self.channel.to_string(),
@@ -238,17 +228,13 @@ impl Message {
         .await;
 
         if empty {
-            // If empty, remove the reaction entirely
             db.clear_reaction(&self.id, emoji).await
         } else {
-            // Otherwise only remove that one reaction
             db.remove_reaction(&self.id, emoji, user).await
         }
     }
 
-    /// Remove a reaction from a message
     pub async fn clear_reaction(&self, db: &Database, emoji: &str) -> Result<()> {
-        // Send reaction event
         EventV1::MessageRemoveReaction {
             id: self.id.to_string(),
             channel_id: self.channel.to_string(),
@@ -257,8 +243,223 @@ impl Message {
         .p(self.channel.to_string())
         .await;
 
-        // Write to database
         db.clear_reaction(&self.id, emoji).await
+    }
+
+    pub async fn send_without_notifications(
+        &mut self,
+        db: &Database,
+        is_dm: bool,
+        generate_embeds: bool,
+    ) -> Result<()> {
+        db.insert_message(self).await?;
+
+        EventV1::Message(self.clone())
+            .p(self.channel.to_string())
+            .await;
+
+        tasks::last_message_id::queue(self.channel.to_string(), self.id.to_string(), is_dm).await;
+
+        if let Some(mentions) = &self.mentions {
+            for user in mentions {
+                tasks::ack::queue(
+                    self.channel.to_string(),
+                    user.to_string(),
+                    AckEvent::AddMention {
+                        ids: vec![self.id.to_string()],
+                    },
+                )
+                .await;
+            }
+        }
+
+        if generate_embeds {
+            if let Some(content) = &self.content {
+                tasks::process_embeds::queue(
+                    self.channel.to_string(),
+                    self.id.to_string(),
+                    content.clone(),
+                )
+                .await;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn create_from_api(
+        db: &Database,
+        channel: Channel,
+        data: DataMessageSend,
+        author: MessageAuthor<'_>,
+        mut idempotency: IdempotencyKey,
+        generate_embeds: bool,
+    ) -> Result<Message> {
+        idempotency
+            .consume_nonce(data.nonce)
+            .await
+            .map_err(|_| Error::InvalidOperation)?;
+
+        if (data.content.as_ref().map_or(true, |v| v.is_empty()))
+            && (data.attachments.as_ref().map_or(true, |v| v.is_empty()))
+            && (data.embeds.as_ref().map_or(true, |v| v.is_empty()))
+        {
+            return Err(Error::EmptyMessage);
+        }
+
+        if let Some(interactions) = &data.interactions {
+            if interactions.restrict_reactions {
+                let disallowed = if let Some(list) = &interactions.reactions {
+                    list.is_empty()
+                } else {
+                    true
+                };
+
+                if disallowed {
+                    return Err(Error::InvalidProperty);
+                }
+            }
+        }
+
+        let (author_id, webhook) = match &author {
+            MessageAuthor::User(user) => (user.id.clone(), None),
+            // MessageAuthor::Webhook(webhook) => (webhook.id.clone(), Some((*webhook).clone())),
+            MessageAuthor::System { .. } => ("00000000000000000000000000".to_string(), None),
+        };
+
+        let message_id = Ulid::new().to_string();
+        let mut message = Message {
+            id: message_id.clone(),
+            channel: channel.id().to_string(),
+            masquerade: data.masquerade.map(|masquerade| masquerade.into()),
+            interactions: data
+                .interactions
+                .map(|interactions| interactions.into())
+                .unwrap_or_default(),
+            author: author_id,
+            ..Default::default()
+        };
+
+        let mut mentions = HashSet::new();
+        if let Some(content) = &data.content {
+            for capture in RE_MENTION.captures_iter(content) {
+                if let Some(mention) = capture.get(1) {
+                    mentions.insert(mention.as_str().to_string());
+                }
+            }
+        }
+
+        let mut replies = HashSet::new();
+        if let Some(entries) = data.replies {
+            for Reply { id, mention } in entries {
+                let message = db.fetch_message(&id).await?;
+
+                if mention {
+                    mentions.insert(message.author.to_owned());
+                }
+
+                replies.insert(message.id);
+            }
+        }
+
+        if !mentions.is_empty() {
+            message.mentions.replace(mentions.into_iter().collect());
+        }
+
+        if !replies.is_empty() {
+            message
+                .replies
+                .replace(replies.into_iter().collect::<Vec<String>>());
+        }
+
+        let mut attachments = vec![];
+
+        for attachment_id in data.attachments.as_deref().unwrap_or_default() {
+            attachments.push(
+                db.find_and_use_attachment(attachment_id, "attachments", "message", &message_id)
+                    .await?,
+            );
+        }
+
+        if !attachments.is_empty() {
+            message.attachments.replace(attachments);
+        }
+
+        for sendable_embed in data.embeds.unwrap_or_default() {
+            message.attach_sendable_embed(db, sendable_embed).await?;
+        }
+
+        message.content = data.content;
+
+        message.nonce = Some(idempotency.into_key());
+
+        message.send(db, author, &channel, generate_embeds).await?;
+
+        Ok(message)
+    }
+
+    pub async fn send(
+        &mut self,
+        db: &Database,
+        author: MessageAuthor<'_>,
+        channel: &Channel,
+        generate_embeds: bool,
+    ) -> Result<()> {
+        self.send_without_notifications(
+            db,
+            matches!(channel, Channel::DirectMessage { .. }),
+            generate_embeds,
+        )
+        .await?;
+
+        // Push out Web Push notifications
+        crate::tasks::web_push::queue(
+            {
+                match channel {
+                    Channel::DirectMessage { recipients, .. }
+                    | Channel::Group { recipients, .. } => recipients.clone(),
+                    Channel::TextChannel { .. } => self.mentions.clone().unwrap_or_default(),
+                    _ => vec![],
+                }
+            },
+            PushNotification::from(self.clone().into(), Some(author), &channel.id()).await,
+        )
+        .await;
+
+        Ok(())
+    }
+
+    pub async fn attach_sendable_embed(
+        &mut self,
+        db: &Database,
+        embed: SendableEmbed,
+    ) -> Result<()> {
+        let media: Option<File> = if let id = embed.media {
+            Some(
+                db.find_and_use_attachment(&id, "attachments", "message", &self.id)
+                    .await?
+                    .into(),
+            )
+        } else {
+            None
+        };
+
+        let embed = Embed::Text(Text {
+            icon_url: embed.icon_url,
+            url: embed.url,
+            title: embed.title,
+            description: embed.description,
+            media,
+            colour: embed.colour,
+        });
+
+        if let Some(embeds) = &mut self.embeds {
+            embeds.push(embed);
+        } else {
+            self.embeds = Some(vec![embed]);
+        }
+
+        Ok(())
     }
 }
 
@@ -339,14 +540,15 @@ impl From<SystemMessage> for String {
 }
 
 impl Interactions {
-    /// Validate interactions info is correct
     pub async fn validate(
         &self,
         db: &Database,
         permissions: &mut PermissionCalculator<'_>,
     ) -> Result<()> {
         if let Some(reactions) = &self.reactions {
-            permissions.throw_permission(db, Permission::React).await?;
+            permissions
+                .throw_permission(db, ChannelPermission::React)
+                .await?;
 
             if reactions.len() > 20 {
                 return Err(Error::InvalidOperation);
@@ -374,7 +576,6 @@ impl Interactions {
         }
     }
 
-    /// Check if default initialization of fields
     pub fn is_default(&self) -> bool {
         !self.restrict_reactions && self.reactions.is_none()
     }
@@ -382,9 +583,6 @@ impl Interactions {
 
 impl SendableEmbed {
     pub async fn into_embed(self, db: &Database, message_id: String) -> Result<Embed> {
-        // self.validate()
-        //     .map_err(|error| Error::FailedValidation { error })?;
-
         let media = if let Some(id) = self.media {
             Some(
                 db.find_and_use_attachment(&id, "attachments", "message", &message_id)
@@ -433,6 +631,32 @@ impl BulkMessageResponse {
             })
         } else {
             Ok(BulkMessageResponse::JustMessage(messages))
+        }
+    }
+}
+
+impl<'a> MessageAuthor<'a> {
+    pub fn id(&self) -> &str {
+        match self {
+            MessageAuthor::User(user) => &user.id,
+            // MessageAuthor::Webhook(webhook) => &webhook.id,
+            MessageAuthor::System { .. } => "00000000000000000000000000",
+        }
+    }
+
+    pub fn avatar(&self) -> Option<&str> {
+        match self {
+            MessageAuthor::User(user) => user.avatar.as_ref().map(|file| file.id.as_str()),
+            // MessageAuthor::Webhook(webhook) => webhook.avatar.as_ref().map(|file| file.id.as_str()),
+            MessageAuthor::System { avatar, .. } => *avatar,
+        }
+    }
+
+    pub fn username(&self) -> &str {
+        match self {
+            MessageAuthor::User(user) => &user.username,
+            // MessageAuthor::Webhook(webhook) => &webhook.name,
+            MessageAuthor::System { username, .. } => username,
         }
     }
 }

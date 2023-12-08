@@ -5,7 +5,11 @@ use revolt_optional_struct::OptionalStruct;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{models::File, permissions::defn::OverrideField};
+use crate::{
+    auto_derived,
+    models::{Channel, File},
+    permissions::defn::OverrideField,
+};
 
 pub fn if_false(t: &bool) -> bool {
     !t
@@ -125,4 +129,24 @@ pub enum FieldsServer {
 #[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Eq, Clone)]
 pub enum FieldsRole {
     Colour,
+}
+
+auto_derived! {
+    #[derive(Default)]
+    #[cfg_attr(feature = "validator", derive(Validate))]
+    pub struct DataCreateServer {
+        #[cfg_attr(feature = "validator", validate(length(min = 1, max = 32)))]
+        pub name: String,
+
+        #[cfg_attr(feature = "validator", validate(length(min = 0, max = 1024)))]
+        pub description: Option<String>,
+
+        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+        pub nsfw: Option<bool>,
+    }
+
+    pub struct CreateServerLegacyResponse {
+        pub server: Server,
+        pub channels: Vec<Channel>,
+    }
 }

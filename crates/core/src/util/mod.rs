@@ -1,6 +1,8 @@
 pub mod authifier;
 pub mod config;
+pub mod idempotency;
 pub mod log;
+pub mod r#macro;
 pub mod manipulation;
 pub mod pfp;
 pub mod r#ref;

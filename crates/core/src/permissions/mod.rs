@@ -1,7 +1,7 @@
 use crate::{
     database::Database,
     models::{user::RelationshipStatus, Channel, Member, Server, User},
-    permissions::defn::Permission,
+    permissions::defn::ChannelPermission,
     util::{result::Result, value::Value},
     Error,
 };
@@ -90,7 +90,11 @@ impl<'a> PermissionCalculator<'a> {
         Ok((value) & perms == (value))
     }
 
-    pub async fn has_permission(&mut self, db: &Database, permission: Permission) -> Result<bool> {
+    pub async fn has_permission(
+        &mut self,
+        db: &Database,
+        permission: ChannelPermission,
+    ) -> Result<bool> {
         self.has_permission_value(db, permission as u64).await
     }
 
@@ -104,7 +108,11 @@ impl<'a> PermissionCalculator<'a> {
     }
 
     /// Check whether we have a given permission, otherwise throw an error
-    pub async fn throw_permission(&mut self, db: &Database, permission: Permission) -> Result<()> {
+    pub async fn throw_permission(
+        &mut self,
+        db: &Database,
+        permission: ChannelPermission,
+    ) -> Result<()> {
         if self.has_permission(db, permission).await? {
             Ok(())
         } else {
@@ -144,9 +152,10 @@ impl<'a> PermissionCalculator<'a> {
     pub async fn throw_permission_and_view_channel(
         &mut self,
         db: &Database,
-        permission: Permission,
+        permission: ChannelPermission,
     ) -> Result<()> {
-        self.throw_permission(db, Permission::ViewChannel).await?;
+        self.throw_permission(db, ChannelPermission::ViewChannel)
+            .await?;
         self.throw_permission(db, permission).await
     }
 

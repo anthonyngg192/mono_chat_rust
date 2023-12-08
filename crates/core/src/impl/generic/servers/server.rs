@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use iso8601_timestamp::Timestamp;
 use ulid::Ulid;
@@ -7,18 +7,20 @@ use crate::{
     database::Database,
     events::client::EventV1,
     models::{
+        channel::{DataCreateServerChannel, LegacyServerChannelType},
         message::SystemMessage,
         server::{
-            FieldsRole, FieldsServer, PartialRole, PartialServer, Role, SystemMessageChannels,
+            DataCreateServer, FieldsRole, FieldsServer, PartialRole, PartialServer, Role,
+            SystemMessageChannels,
         },
         server_member::{MemberCompositeKey, RemovalIntention},
         Channel, Member, Server, ServerBan, User,
     },
     permissions::{
-        defn::{OverrideField, Permission},
+        defn::{ChannelPermission, OverrideField},
         perms,
     },
-    Error, Result,
+    Error, Result, DEFAULT_PERMISSION_SERVER,
 };
 
 impl Server {
@@ -32,12 +34,55 @@ impl Server {
         }
     }
 
-    /// Create a server
-    pub async fn create(&self, db: &Database) -> Result<()> {
-        db.insert_server(self).await
+    pub async fn create(
+        &self,
+        db: &Database,
+        data: DataCreateServer,
+        owner: &User,
+        create_default_channels: bool,
+    ) -> Result<(Server, Vec<Channel>)> {
+        let mut server = Server {
+            id: ulid::Ulid::new().to_string(),
+            owner: owner.id.to_string(),
+            name: data.name,
+            description: data.description,
+            channels: vec![],
+            nsfw: data.nsfw.unwrap_or(false),
+            default_permissions: *DEFAULT_PERMISSION_SERVER as i64,
+
+            analytics: false,
+            banner: None,
+            categories: None,
+            discoverable: false,
+            flags: None,
+            icon: None,
+            roles: HashMap::new(),
+            system_messages: None,
+        };
+
+        let channels: Vec<Channel> = if create_default_channels {
+            vec![
+                Channel::create_server_channel(
+                    db,
+                    &mut server,
+                    DataCreateServerChannel {
+                        channel_type: LegacyServerChannelType::Text,
+                        name: "General".to_string(),
+                        description: None,
+                    },
+                    false,
+                )
+                .await?,
+            ]
+        } else {
+            vec![]
+        };
+
+        server.channels = channels.iter().map(|c| c.id().to_string()).collect();
+        db.insert_server(&server).await?;
+        Ok((server, channels))
     }
 
-    /// Update server data
     pub async fn update<'a>(
         &mut self,
         db: &Database,
@@ -63,7 +108,6 @@ impl Server {
         Ok(())
     }
 
-    /// Set role permission on a server
     pub async fn set_role_permission(
         &mut self,
         db: &Database,
@@ -89,7 +133,6 @@ impl Server {
         }
     }
 
-    /// Delete a server
     pub async fn delete(self, db: &Database) -> Result<()> {
         EventV1::ServerDelete {
             id: self.id.clone(),
@@ -134,7 +177,7 @@ impl Server {
                 if perm
                     .clone()
                     .channel(&channel)
-                    .has_permission(db, Permission::ViewChannel)
+                    .has_permission(db, ChannelPermission::ViewChannel)
                     .await?
                 {
                     channels.push(channel);
@@ -210,7 +253,6 @@ impl Server {
         Ok(())
     }
 
-    /// Create ban
     pub async fn ban_user(
         self,
         db: &Database,
@@ -222,7 +264,6 @@ impl Server {
         Ok(ban)
     }
 
-    /// Ban a member from a server
     pub async fn ban_member(
         self,
         db: &Database,

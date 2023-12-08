@@ -9,7 +9,7 @@ use crate::{
         user::{PartialUser, Presence, RelationshipStatus},
         Channel, Member, User,
     },
-    permissions::{defn::Permission, perms, r#impl::user::get_relationship},
+    permissions::{defn::ChannelPermission, perms, r#impl::user::get_relationship},
     presence::presence_filter_online,
     Result,
 };
@@ -37,7 +37,7 @@ impl Cache {
                 }
 
                 perms
-                    .has_permission(db, Permission::ViewChannel)
+                    .has_permission(db, ChannelPermission::ViewChannel)
                     .await
                     .unwrap_or_default()
             }
