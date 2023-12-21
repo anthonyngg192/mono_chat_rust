@@ -321,7 +321,7 @@ impl Message {
             }
         }
 
-        let (author_id, webhook) = match &author {
+        let (author_id) = match &author {
             MessageAuthor::User(user) => (user.id.clone(), None),
             // MessageAuthor::Webhook(webhook) => (webhook.id.clone(), Some((*webhook).clone())),
             MessageAuthor::System { .. } => ("00000000000000000000000000".to_string(), None),

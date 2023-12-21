@@ -2,15 +2,15 @@ use std::time::SystemTime;
 
 use crate::{
     models::{message::MessageAuthor, Message, User},
-    variables::delta::{APP_URL, AUTUMN_URL},
+    sys_config::config,
+    variables::delta::{APP_URL, AUTUMN_URL, PUBLIC_URL},
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PushNotification {
     pub author: String,
-
-    pub icon: Option<String>,
+    pub icon: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
@@ -22,16 +22,15 @@ pub struct PushNotification {
 
 impl PushNotification {
     pub fn new(msg: Message, author: Option<&User>, channel_id: &str) -> Self {
-        // let icon = if let Some(author) = author {
-        //     if let Some(avatar) = &author.avatar {
-        //         format!("{}/avatars/{}", &*AUTUMN_URL, avatar.id)
-        //     } else {
-        //         format!("{}/users/{}/default_avatar", &*PUBLIC_URL, msg.author)
-        //     }
-        // } else {
-        //     // format!("{}/assets/logo.png", &*APP_URL)
-        //     None
-        // };
+        let icon = if let Some(author) = author {
+            if let Some(avatar) = &author.avatar {
+                format!("{}/avatars/{}", &*AUTUMN_URL, avatar.id)
+            } else {
+                format!("{}/users/{}/default_avatar", &*PUBLIC_URL, msg.author)
+            }
+        } else {
+            format!("{}/assets/logo.png", &*APP_URL)
+        };
 
         let image = msg.attachments.and_then(|attachments| {
             attachments
@@ -56,7 +55,7 @@ impl PushNotification {
             author: author
                 .map(|x| x.username.to_string())
                 .unwrap_or_else(|| "Revolt".to_string()),
-            icon: None,
+            icon,
             image,
             body,
             tag: channel_id.to_string(),
@@ -66,6 +65,24 @@ impl PushNotification {
     }
 
     pub async fn from(msg: Message, author: Option<MessageAuthor<'_>>, channel_id: &str) -> Self {
+        let config = config().await;
+
+        let icon = if let Some(author) = &author {
+            if let Some(avatar) = author.avatar() {
+                format!("{}/avatars/{}", config.hosts.autumn, avatar)
+            } else {
+                format!("{}/users/{}/default_avatar", config.hosts.api, author.id())
+            }
+        } else {
+            format!("{}/assets/logo.png", config.hosts.app)
+        };
+
+        let image = msg.attachments.and_then(|attachments| {
+            attachments
+                .first()
+                .map(|v| format!("{}/attachments/{}", config.hosts.autumn, v.id))
+        });
+
         let body = if let Some(sys) = msg.system {
             sys.into()
         } else if let Some(text) = msg.content {
@@ -83,18 +100,12 @@ impl PushNotification {
             author: author
                 .map(|x| x.username().to_string())
                 .unwrap_or_else(|| "Revolt".to_string()),
-            icon: None,
-            image: None,
+            icon,
+            image,
             body,
             tag: channel_id.to_string(),
             timestamp,
-            url: format!(
-                "{}/channel/{}/{}",
-                "config.hosts.app".to_string(),
-                channel_id,
-                msg.id
-            ),
-            // url: None,
+            url: format!("{}/channel/{}/{}", config.hosts.app, channel_id, msg.id),
         }
     }
 }

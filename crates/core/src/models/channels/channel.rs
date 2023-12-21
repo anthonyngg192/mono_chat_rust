@@ -1,9 +1,10 @@
 // use std::collections::HashMap;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use validator::Validate;
 extern crate serde;
 
 use crate::{models::File, permissions::defn::OverrideField};
@@ -165,4 +166,44 @@ pub struct DataCreateServerChannel {
 
     #[cfg_attr(feature = "validator", validate(length(min = 0, max = 1024)))]
     pub description: Option<String>,
+}
+
+#[derive(Validate, Serialize, Deserialize, Clone)]
+pub struct DataEditChannel {
+    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 32)))]
+    pub name: Option<String>,
+
+    #[cfg_attr(feature = "validator", validate(length(min = 0, max = 1024)))]
+    pub description: Option<String>,
+
+    pub owner: Option<String>,
+
+    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 128)))]
+    pub icon: Option<String>,
+
+    pub nsfw: Option<bool>,
+
+    pub archived: Option<bool>,
+
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub remove: Option<Vec<FieldsChannel>>,
+}
+
+#[derive(Validate, Serialize, Deserialize, Clone, Default)]
+pub struct DataCreateGroup {
+    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 32)))]
+    pub name: String,
+
+    #[cfg_attr(feature = "validator", validate(length(min = 0, max = 1024)))]
+    pub description: Option<String>,
+
+    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 128)))]
+    pub icon: Option<String>,
+
+    #[cfg_attr(feature = "validator", validate(length(min = 0, max = 49)))]
+    #[serde(default)]
+    pub users: HashSet<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nsfw: Option<bool>,
 }

@@ -203,7 +203,6 @@ pub struct AppendMessage {
 }
 
 #[derive(Validate, Serialize, Deserialize, JsonSchema)]
-
 pub struct DataMessageSend {
     #[validate(length(min = 1, max = 64))]
     pub nonce: Option<String>,

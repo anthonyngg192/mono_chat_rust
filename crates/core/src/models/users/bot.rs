@@ -1,4 +1,3 @@
-/// Utility function to check if a boolean value is false
 use num_enum::TryFromPrimitive;
 use revolt_optional_struct::OptionalStruct;
 use schemars::JsonSchema;
@@ -34,17 +33,16 @@ pub struct Bot {
 
     #[serde(skip_serializing_if = "if_false", default)]
     pub discoverable: bool,
-    /// Reserved; URL for handling interactions
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interactions_url: Option<String>,
-    /// URL for terms of service
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub terms_of_service_url: Option<String>,
-    /// URL for privacy policy
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub privacy_policy_url: Option<String>,
 
-    /// Enum of bot flags
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flags: Option<i32>,
 }
@@ -80,6 +78,7 @@ pub struct PublicBot {
     pub description: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FetchBotResponse {
     pub bot: Bot,
     pub user: User,

@@ -1,16 +1,22 @@
 use crate::database::Database;
 use crate::util::variables::delta::{JANUARY_CONCURRENT_CONNECTIONS, JANUARY_URL, MAX_EMBED_COUNT};
+use crate::Error;
 use crate::{
     models::{message::AppendMessage, Message},
     types::january::Embed,
+    Result,
 };
-
 use async_lock::Semaphore;
 use async_std::task::spawn;
 use deadqueue::limited::Queue;
+use futures::future::join_all;
+use linkify::{LinkFinder, LinkKind};
 use once_cell::sync::Lazy;
+use regex::Regex;
+use std::collections::HashSet;
 use std::sync::Arc;
 
+use isahc::prelude::*;
 /// Task information
 #[derive(Debug)]
 struct EmbedTask {
@@ -59,5 +65,87 @@ pub async fn worker(db: Database) {
                 }
             }
         });
+    }
+}
+static RE_CODE: Lazy<Regex> = Lazy::new(|| Regex::new("```(?:.|\n)+?```|`(?:.|\n)+?`").unwrap());
+static RE_IGNORED: Lazy<Regex> = Lazy::new(|| Regex::new("(<http.+>)").unwrap());
+
+pub async fn generate(
+    content: String,
+    host: &str,
+    max_embeds: usize,
+    semaphone: Arc<Semaphore>,
+) -> Result<Vec<Embed>> {
+    let content = RE_CODE.replace_all(&content, "");
+
+    let content = RE_IGNORED.replace_all(&content, "");
+
+    let content = content
+        .split('\n')
+        .map(|v| {
+            if let Some(c) = v.chars().next() {
+                if c == '>' {
+                    return "";
+                }
+            }
+            v
+        })
+        .collect::<Vec<&str>>()
+        .join("\n");
+
+    let mut finder = LinkFinder::new();
+
+    finder.kinds(&[LinkKind::Url]);
+
+    let links: Vec<String> = finder
+        .links(&content)
+        .map(|x| {
+            x.as_str()
+                .chars()
+                .take_while(|&ch| ch != '#')
+                .collect::<String>()
+        })
+        .collect::<HashSet<String>>()
+        .into_iter()
+        .take(max_embeds)
+        .collect();
+
+    if links.is_empty() {
+        return Err(Error::LabelMe);
+    }
+
+    let mut tasks = Vec::new();
+
+    for link in links {
+        let semaphore = semaphone.clone();
+        let host = host.to_string();
+
+        tasks.push(spawn(async move {
+            let guard = semaphore.acquire().await;
+
+            if let Ok(mut response) = isahc::get_async(format!(
+                "{host}/embed>url{}",
+                url_escape::encode_component(&link)
+            ))
+            .await
+            {
+                drop(guard);
+                response.json::<Embed>().await.ok()
+            } else {
+                None
+            }
+        }));
+    }
+
+    let embeds = join_all(tasks)
+        .await
+        .into_iter()
+        .flatten()
+        .collect::<Vec<Embed>>();
+
+    if !embeds.is_empty() {
+        Ok(embeds)
+    } else {
+        Err(Error::LabelMe)
     }
 }

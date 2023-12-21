@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     database::Database,
     events::client::EventV1,
@@ -10,7 +12,22 @@ use crate::{
     Error, Result,
 };
 use futures::try_join;
+use once_cell::sync::Lazy;
 use ulid::Ulid;
+
+pub static DISCRIMINATOR_SEARCH_SPACE: Lazy<HashSet<String>> = Lazy::new(|| {
+    let mut set = (2..9999)
+        .map(|v| format!("{:0>4}", v))
+        .collect::<HashSet<String>>();
+
+    for discrim in [
+        123, 1234, 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 9999,
+    ] {
+        set.remove(&format!("{:0>4}", discrim));
+    }
+
+    set.into_iter().collect()
+});
 
 impl User {
     pub async fn update<'a>(
@@ -85,7 +102,7 @@ impl User {
             // // Yes, this is hard-coded
             // // No, I don't care + ratio
             // if _id.datetime().timestamp_millis() < 1629638578431 {
-            //     badges = badges + Badges::EarlyAdopter;
+            //     UserBadges = UserBadges + UserBadges::EarlyAdopter;
             // }
         }
         self.badges = Some(badges);
@@ -101,15 +118,18 @@ impl User {
         self
     }
 
-    #[must_use]
-    pub fn with_relationship(self, perspective: &User) -> User {
-        let mut user = self.foreign();
-
-        if user.relationship.is_none() {
-            user.relationship = Some(get_relationship(perspective, &user.id));
+    pub fn with_relationship(&self, user_b: &str) -> RelationshipStatus {
+        if self.id == user_b {
+            return RelationshipStatus::User;
         }
 
-        user
+        if let Some(relations) = &self.relations {
+            if let Some(relationship) = relations.iter().find(|x| x.id == user_b) {
+                return relationship.status.clone();
+            }
+        }
+
+        RelationshipStatus::None
     }
 
     pub async fn fetch_foreign_users(db: &Database, user_ids: &[String]) -> Result<Vec<User>> {
@@ -155,19 +175,25 @@ impl User {
 
     #[must_use]
     pub fn with_perspective(self, perspective: &User, permission: &UserPerms) -> User {
-        self.with_relationship(perspective)
+        self.with_relationship(perspective.id.as_str())
             .apply_permission(permission)
     }
 
     pub async fn with_auto_perspective(self, db: &Database, perspective: &User) -> User {
-        let user = self.with_relationship(perspective);
+        let user = self.with_relationship(perspective.id.as_str());
         let permissions = perms(perspective).user(&user).calc_user(db).await;
         user.apply_permission(&permissions)
     }
 
     pub async fn can_acquire_server(&self, db: &Database) -> Result<bool> {
-        // ! FIXME: hardcoded max server count
         Ok(db.fetch_server_count(&self.id).await? <= 100)
+    }
+
+    pub fn is_friends_with(&self, user_b: &str) -> bool {
+        matches!(
+            self.with_relationship(user_b),
+            RelationshipStatus::Friend | RelationshipStatus::User
+        )
     }
 
     pub async fn validate_username(db: &Database, username: String) -> Result<String> {
@@ -234,21 +260,19 @@ impl User {
 
         EventV1::UserRelationship {
             id: target.id.clone(),
-            user: self.clone().with_relationship(target),
-            status: remote,
+            user: self.clone().into(db, Some(&*target)).await,
         }
         .private(target.id.clone())
         .await;
 
         EventV1::UserRelationship {
             id: self.id.clone(),
-            user: target.clone().with_relationship(self),
-            status: local.clone(),
+            user: target.clone().into(db, Some(&*self)).await,
         }
         .private(self.id.clone())
         .await;
 
-        target.relationship.replace(local);
+        // target.relationship.replace(local);
         Ok(())
     }
 
@@ -397,5 +421,25 @@ impl User {
 
         db.insert_user(&user).await?;
         Ok(user)
+    }
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for User {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            username: Default::default(),
+            display_name: Default::default(),
+            avatar: Default::default(),
+            relations: Default::default(),
+            badges: Default::default(),
+            status: Default::default(),
+            profile: Default::default(),
+            flags: Default::default(),
+            privileged: Default::default(),
+            bot: Default::default(),
+            online: Default::default(),
+        }
     }
 }

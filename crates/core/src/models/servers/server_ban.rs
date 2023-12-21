@@ -1,14 +1,11 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use crate::auto_derived;
 
 use super::server_member::MemberCompositeKey;
 
-/// Representation of a server ban on Revolt
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
-pub struct ServerBan {
-    /// Unique member id
-    #[serde(rename = "_id")]
-    pub id: MemberCompositeKey,
-    /// Reason for ban creation
-    pub reason: Option<String>,
-}
+auto_derived!(
+    pub struct ServerBan {
+        #[cfg_attr(feature = "serde", serde(rename = "_id"))]
+        pub id: MemberCompositeKey,
+        pub reason: Option<String>,
+    }
+);

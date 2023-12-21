@@ -3,15 +3,9 @@ use revolt_optional_struct::OptionalStruct;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::models::File;
+use crate::{auto_derived, models::File};
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, Default)]
-pub struct MemberCompositeKey {
-    pub server: String,
-    pub user: String,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, OptionalStruct)]
+#[derive(Serialize, Deserialize, Debug, Clone, OptionalStruct)]
 #[optional_derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
 #[optional_name = "PartialMember"]
 #[opt_skip_serializing_none]
@@ -35,17 +29,23 @@ pub struct Member {
     pub timeout: Option<Timestamp>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Eq, Clone)]
-pub enum FieldsMember {
-    Nickname,
-    Avatar,
-    Roles,
-    Timeout,
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, Default)]
+pub struct MemberCompositeKey {
+    pub server: String,
+    pub user: String,
 }
 
-/// Member removal intention
-pub enum RemovalIntention {
-    Leave,
-    Kick,
-    Ban,
-}
+auto_derived!(
+    pub enum FieldsMember {
+        Nickname,
+        Avatar,
+        Roles,
+        Timeout,
+    }
+
+    pub enum RemovalIntention {
+        Leave,
+        Kick,
+        Ban,
+    }
+);

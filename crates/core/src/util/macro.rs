@@ -15,7 +15,7 @@ macro_rules! auto_derived {
 #[macro_export]
 macro_rules! auto_derived_partial {
     ( $item:item, $name:expr ) => {
-        #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, OptionalStruct, Default)]
+        #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, OptionalStruct)]
         #[optional_derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
         #[optional_name = $name]
         #[opt_skip_serializing_none]
