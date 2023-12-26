@@ -39,7 +39,7 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/onboard" => onboard::routes(),
             "/push" => push::routes(),
             "/sync" => sync::routes(),
-            // "/webhooks" => webhooks::routes()
+            "/webhooks" => webhooks::routes()
         };
     } else {
         mount_endpoints_and_merged_docs! {

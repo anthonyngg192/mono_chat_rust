@@ -208,8 +208,8 @@ pub struct DataCreateGroup {
     pub nsfw: Option<bool>,
 }
 
-#[derive(OptionalStruct, Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[optional_derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(OptionalStruct, Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+#[optional_derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
 #[optional_name = "PartialWebhook"]
 pub struct Webhook {
     pub id: String,

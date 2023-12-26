@@ -1,11 +1,7 @@
 {
   "breadcrumbs.enabled": true,
-  "cSpell.enableFiletypes": [
-    "rust"
-  ],
-  "cSpell.ignorePaths": [
-    "**/*.json"
-  ],
+  "cSpell.enableFiletypes": ["rust"],
+  "cSpell.ignorePaths": ["**/*.json"],
   "cSpell.words": [
     "authifier",
     "Bandcamp",
@@ -43,6 +39,7 @@
     "ratelimiter",
     "repr",
     "reqwest",
+    "rustc",
     "schemars",
     "semaphone",
     "substr",
@@ -50,6 +47,7 @@
     "tungstenite",
     "Unreact",
     "unreads",
+    "vergen",
     "VOSO"
   ],
   "code-runner.clearPreviousOutput": true,
@@ -60,9 +58,6 @@
   "nixEnvSelector.nixFile": "${workspaceRoot}/default.nix",
   "nixEnvSelector.suggestion": false,
   "rust-analyzer.checkOnSave.command": "clippy",
-  "rust-analyzer.linkedProjects": [
-    "./Cargo.toml",
-    "./Cargo.toml"
-  ],
+  "rust-analyzer.linkedProjects": ["./Cargo.toml", "./Cargo.toml"],
   "rust-analyzer.showUnlinkedFileNotification": false
 }

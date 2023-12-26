@@ -51,7 +51,7 @@ pub mod webhooks {
 }
 
 #[derive(Debug, Clone)]
-pub struct MongoDb(pub mongodb::Client);
+pub struct MongoDb(pub ::mongodb::Client, pub String);
 
 impl AbstractDatabase for MongoDb {}
 

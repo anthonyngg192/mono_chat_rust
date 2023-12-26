@@ -5,7 +5,7 @@ use schemars::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::Result;
+use crate::{models::channel::Webhook, Result};
 use crate::{
     models::{Bot, Channel, Emoji, Message, Server, User},
     Database,
@@ -44,10 +44,9 @@ impl Reference {
         db.fetch_user(&self.id).await
     }
 
-    // /// Fetch webhook from Ref
-    // pub async fn as_webhook(&self, db: &Database) -> Result<Webhook> {
-    //     db.fetch_webhook(&self.id).await
-    // }
+    pub async fn as_webhook(&self, db: &Database) -> Result<Webhook> {
+        db.fetch_webhook(&self.id).await
+    }
 }
 
 impl<'r> FromParam<'r> for Reference {
