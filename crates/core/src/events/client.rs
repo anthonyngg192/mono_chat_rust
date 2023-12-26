@@ -7,7 +7,7 @@ use crate::{
         message::{AppendMessage, PartialMessage},
         server::{FieldsRole, FieldsServer, PartialRole, PartialServer},
         server_member::{FieldsMember, MemberCompositeKey, PartialMember},
-        user::{FieldsUser, PartialUser, RelationshipStatus},
+        user::{FieldsUser, PartialUser},
         Channel, Emoji, Member, Message, Report, Server, User, UserSettings,
     },
     Error,
@@ -160,6 +160,7 @@ pub enum EventV1 {
     ServerMemberUpdate {
         id: MemberCompositeKey,
         data: PartialMember,
+        clear: Vec<FieldsMember>,
     },
 
     ServerMemberJoin {

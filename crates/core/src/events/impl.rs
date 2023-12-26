@@ -97,9 +97,9 @@ impl State {
 
         let mut user_ids: Vec<String> = user
             .relations
-            .as_ref()
-            .map(|arr| arr.iter().map(|x| x.id.to_string()).collect())
-            .unwrap_or_default();
+            .iter()
+            .map(|x| x.user_id.to_string())
+            .collect();
 
         let members: Vec<Member> = db.fetch_all_memberships(&user.id).await?;
 
@@ -128,7 +128,7 @@ impl State {
 
         let online_ids = presence_filter_online(&user_ids).await;
 
-        user.online = Some(true);
+        user.online = true;
 
         let users = db
             .fetch_users(
@@ -170,12 +170,12 @@ impl State {
         let mut users: Vec<User> = users
             .into_iter()
             .map(|mut x| {
-                x.online = Some(online_ids.contains(&x.id.to_string()));
+                x.online = online_ids.contains(&x.id.to_string());
                 x.with_relationship(&user)
             })
             .collect();
 
-        user.relationship = Some(RelationshipStatus::User);
+        user.relationship = RelationshipStatus::User;
 
         users.push(user.foreign());
         self.reset_state();

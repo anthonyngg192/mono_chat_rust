@@ -4,15 +4,23 @@ use crate::{
     database::Database,
     events::client::EventV1,
     models::{
-        user::{FieldsUser, PartialUser, Presence, RelationshipStatus, UserHint},
+        user::{FieldsUser, PartialUser, Presence, RelationshipStatus, UserBadges, UserHint},
         User,
     },
-    permissions::{defn::UserPerms, perms, r#impl::user::get_relationship},
+    permissions::{
+        defn::UserPerms,
+        perms,
+        r#impl::{
+            permission::{calculate_user_permissions, DatabasePermissionQuery},
+            user::get_relationship,
+        },
+    },
     presence::presence_filter_online,
-    Error, Result,
+    Error, Result, UserPermission,
 };
 use futures::try_join;
 use once_cell::sync::Lazy;
+use redis_kiss::{get_connection, AsyncCommands};
 use ulid::Ulid;
 
 pub static DISCRIMINATOR_SEARCH_SPACE: Lazy<HashSet<String>> = Lazy::new(|| {
@@ -95,36 +103,42 @@ impl User {
     #[must_use]
     pub fn foreign(mut self) -> User {
         self.profile = None;
-        self.relations = None;
+        self.relations = vec![];
 
-        let badges = self.badges.unwrap_or(0);
+        let mut badges = self.badges;
         if let Ok(_id) = ulid::Ulid::from_string(&self.id) {
             // // Yes, this is hard-coded
             // // No, I don't care + ratio
-            // if _id.datetime().timestamp_millis() < 1629638578431 {
-            //     UserBadges = UserBadges + UserBadges::EarlyAdopter;
-            // }
+            if _id.datetime().timestamp_millis() < 1629638578431 {
+                badges = badges + (UserBadges::EarlyAdopter as u32);
+            }
         }
-        self.badges = Some(badges);
+        self.badges = badges;
 
         if let Some(status) = &self.status {
             if let Some(presence) = &status.presence {
                 if presence == &Presence::Invisible {
                     self.status = None;
-                    self.online = Some(false);
+                    self.online = false;
                 }
             }
         }
         self
     }
 
-    pub fn with_relationship(&self, user_b: &str) -> RelationshipStatus {
+    pub fn with_relationship(self, perspective: &User) -> User {
+        let mut user = self.foreign();
+        user.relationship = get_relationship(perspective, &user.id);
+        user
+    }
+
+    pub fn relationship_with(&self, user_b: &str) -> RelationshipStatus {
         if self.id == user_b {
             return RelationshipStatus::User;
         }
 
-        if let Some(relations) = &self.relations {
-            if let Some(relationship) = relations.iter().find(|x| x.id == user_b) {
+        if let relations = &self.relations {
+            if let Some(relationship) = relations.iter().find(|x| x.user_id == user_b) {
                 return relationship.status.clone();
             }
         }
@@ -139,7 +153,7 @@ impl User {
             .await?
             .into_iter()
             .map(|mut user| {
-                user.online = Some(online_ids.contains(&user.id));
+                user.online = online_ids.contains(&user.id);
                 user.foreign()
             })
             .collect::<Vec<User>>())
@@ -175,12 +189,12 @@ impl User {
 
     #[must_use]
     pub fn with_perspective(self, perspective: &User, permission: &UserPerms) -> User {
-        self.with_relationship(perspective.id.as_str())
+        self.with_relationship(perspective)
             .apply_permission(permission)
     }
 
     pub async fn with_auto_perspective(self, db: &Database, perspective: &User) -> User {
-        let user = self.with_relationship(perspective.id.as_str());
+        let user = self.with_relationship(perspective);
         let permissions = perms(perspective).user(&user).calc_user(db).await;
         user.apply_permission(&permissions)
     }
@@ -191,7 +205,7 @@ impl User {
 
     pub fn is_friends_with(&self, user_b: &str) -> bool {
         matches!(
-            self.with_relationship(user_b),
+            self.relationship_with(user_b),
             RelationshipStatus::Friend | RelationshipStatus::User
         )
     }
@@ -422,6 +436,72 @@ impl User {
         db.insert_user(&user).await?;
         Ok(user)
     }
+
+    pub async fn into<'a, P>(self, db: &Database, perspective: P) -> User
+    where
+        P: Into<Option<&'a User>>,
+    {
+        let perspective = perspective.into();
+        let (relationship, can_see_profile) = if self.bot.is_some() {
+            (RelationshipStatus::None, true)
+        } else if let Some(perspective) = perspective {
+            let mut query = DatabasePermissionQuery::new(db, perspective).user(&self);
+
+            if perspective.id == self.id {
+                (RelationshipStatus::User, true)
+            } else {
+                (
+                    perspective
+                        .relations
+                        .clone()
+                        .into_iter()
+                        .find(|relationship| relationship.user_id == self.id)
+                        .map(|relations| relations.status.clone())
+                        .unwrap(),
+                    calculate_user_permissions(&mut query)
+                        .await
+                        .has_user_permission(UserPermission::ViewProfile),
+                )
+            }
+        } else {
+            (RelationshipStatus::None, false)
+        };
+
+        User {
+            username: self.username,
+            display_name: self.display_name,
+            avatar: self.avatar.map(|file| file.into()),
+            relations: if let Some(User { id, .. }) = perspective {
+                if id == &self.id {
+                    self.relations
+                        .into_iter()
+                        .map(|relation| relation.into())
+                        .collect()
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            },
+            badges: self.badges as u32,
+            status: if can_see_profile {
+                self.status.map(|status| status.into())
+            } else {
+                None
+            },
+            profile: if can_see_profile {
+                self.profile.map(|profile| profile.into())
+            } else {
+                None
+            },
+            flags: self.flags as u32,
+            privileged: self.privileged,
+            bot: self.bot.map(|bot| bot.into()),
+            relationship,
+            online: can_see_profile && is_online(&self.id).await,
+            id: self.id,
+        }
+    }
 }
 
 #[allow(clippy::derivable_impls)]
@@ -440,6 +520,15 @@ impl Default for User {
             privileged: Default::default(),
             bot: Default::default(),
             online: Default::default(),
+            relationship: RelationshipStatus::None,
         }
+    }
+}
+
+pub async fn is_online(user_id: &str) -> bool {
+    if let Ok(mut conn) = get_connection().await {
+        conn.exists(user_id).await.unwrap_or(false)
+    } else {
+        false
     }
 }

@@ -5,7 +5,8 @@ use crate::{
     events::client::EventV1,
     models::{
         channel::{
-            DataCreateServerChannel, FieldsChannel, LegacyServerChannelType, PartialChannel,
+            DataCreateServerChannel, FieldsChannel, LegacyServerChannelType, MessageWebhook,
+            PartialChannel, ResponseWebhook, Webhook,
         },
         message::SystemMessage,
         server::PartialServer,
@@ -351,5 +352,26 @@ impl Channel {
         }
 
         Ok(channel)
+    }
+}
+
+impl From<Webhook> for MessageWebhook {
+    fn from(value: Webhook) -> Self {
+        MessageWebhook {
+            name: value.name,
+            avatar: value.avatar.map(|file| file.id),
+        }
+    }
+}
+
+impl From<Webhook> for ResponseWebhook {
+    fn from(value: Webhook) -> Self {
+        ResponseWebhook {
+            id: value.id,
+            name: value.name,
+            avatar: value.avatar.map(|file| file.id),
+            channel_id: value.channel_id,
+            permissions: value.permissions,
+        }
     }
 }

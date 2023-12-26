@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use crate::{
-    models::{message::MessageAuthor, Message, User},
+    models::{message::MessageAuthor, Message},
     sys_config::config,
     variables::delta::{APP_URL, AUTUMN_URL, PUBLIC_URL},
 };
@@ -21,10 +21,10 @@ pub struct PushNotification {
 }
 
 impl PushNotification {
-    pub fn new(msg: Message, author: Option<&User>, channel_id: &str) -> Self {
-        let icon = if let Some(author) = author {
-            if let Some(avatar) = &author.avatar {
-                format!("{}/avatars/{}", &*AUTUMN_URL, avatar.id)
+    pub fn new(msg: Message, author: Option<MessageAuthor<'_>>, channel_id: &str) -> Self {
+        let icon = if let Some(author) = &author {
+            if let Some(avatar) = &author.avatar() {
+                format!("{}/avatars/{}", &*AUTUMN_URL, avatar)
             } else {
                 format!("{}/users/{}/default_avatar", &*PUBLIC_URL, msg.author)
             }
@@ -53,7 +53,7 @@ impl PushNotification {
 
         Self {
             author: author
-                .map(|x| x.username.to_string())
+                .map(|x| x.username().to_string())
                 .unwrap_or_else(|| "Revolt".to_string()),
             icon,
             image,

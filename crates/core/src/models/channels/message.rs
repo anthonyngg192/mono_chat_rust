@@ -13,6 +13,8 @@ use crate::{
     types::january::Embed,
 };
 
+use super::channel::{MessageWebhook, Webhook};
+
 pub static RE_COLOUR: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)^(?:[a-z ]+|var\(--[a-z\d-]+\)|rgba?\([\d, ]+\)|#[a-f0-9]+|(repeating-)?(linear|conic|radial)-gradient\(([a-z ]+|var\(--[a-z\d-]+\)|rgba?\([\d, ]+\)|#[a-f0-9]+|\d+deg)([ ]+(\d{1,3}%|0))?(,[ ]*([a-z ]+|var\(--[a-z\d-]+\)|rgba?\([\d, ]+\)|#[a-f0-9]+)([ ]+(\d{1,3}%|0))?)+\))$").unwrap()
 });
@@ -114,6 +116,9 @@ pub struct Message {
     pub nonce: Option<String>,
     pub channel: String,
     pub author: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub webhook: Option<MessageWebhook>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
@@ -230,7 +235,7 @@ pub struct Reply {
 
 pub enum MessageAuthor<'a> {
     User(&'a User),
-    // Webhook(&'a Webhook),
+    Webhook(&'a Webhook),
     System {
         username: &'a str,
         avatar: Option<&'a str>,

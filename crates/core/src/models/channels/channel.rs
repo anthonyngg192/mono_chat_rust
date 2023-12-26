@@ -2,6 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use revolt_optional_struct::OptionalStruct;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -206,4 +207,58 @@ pub struct DataCreateGroup {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nsfw: Option<bool>,
+}
+
+#[derive(OptionalStruct, Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[optional_derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[optional_name = "PartialWebhook"]
+pub struct Webhook {
+    pub id: String,
+
+    pub name: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<File>,
+
+    pub channel_id: String,
+
+    pub permissions: u64,
+
+    pub token: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
+pub struct MessageWebhook {
+    pub name: String,
+    pub avatar: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
+#[cfg_attr(feature = "validator", derive(validator::Validate))]
+pub struct DataEditWebhook {
+    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 32)))]
+    pub name: Option<String>,
+
+    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 128)))]
+    pub avatar: Option<String>,
+
+    pub permissions: Option<u64>,
+
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub remove: Vec<FieldsWebhook>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
+pub struct ResponseWebhook {
+    pub id: String,
+
+    pub name: String,
+    pub avatar: Option<String>,
+    pub channel_id: String,
+    pub permissions: u64,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
+pub enum FieldsWebhook {
+    Avatar,
 }

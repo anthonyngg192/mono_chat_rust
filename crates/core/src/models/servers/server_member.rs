@@ -3,7 +3,7 @@ use revolt_optional_struct::OptionalStruct;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{auto_derived, models::File};
+use crate::models::File;
 
 #[derive(Serialize, Deserialize, Debug, Clone, OptionalStruct)]
 #[optional_derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
@@ -35,17 +35,17 @@ pub struct MemberCompositeKey {
     pub user: String,
 }
 
-auto_derived!(
-    pub enum FieldsMember {
-        Nickname,
-        Avatar,
-        Roles,
-        Timeout,
-    }
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
+pub enum FieldsMember {
+    Nickname,
+    Avatar,
+    Roles,
+    Timeout,
+}
 
-    pub enum RemovalIntention {
-        Leave,
-        Kick,
-        Ban,
-    }
-);
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+pub enum RemovalIntention {
+    Leave,
+    Kick,
+    Ban,
+}

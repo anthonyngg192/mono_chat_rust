@@ -14,8 +14,9 @@ pub fn if_false(t: &bool) -> bool {
 use crate::models::media::attachment::File;
 pub static RE_USERNAME: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\p{L}|[\d_.-])+$").unwrap());
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Eq, Default)]
 pub enum RelationshipStatus {
+    #[default]
     None,
     User,
     Friend,
@@ -77,7 +78,7 @@ pub enum UserBadges {
     ReservedRelevantJokeBadge2 = 1024,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, OptionalStruct)]
+#[derive(OptionalStruct, Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[optional_derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[optional_name = "PartialUser"]
 #[opt_skip_serializing_none]
@@ -93,11 +94,11 @@ pub struct User {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<File>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub relations: Option<Vec<Relationship>>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub relations: Vec<Relationship>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub badges: Option<i32>,
+    #[serde(skip_serializing_if = "if_zero_u32", default)]
+    pub badges: u32,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<UserStatus>,
@@ -105,8 +106,8 @@ pub struct User {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<UserProfile>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub flags: Option<i32>,
+    #[serde(skip_serializing_if = "if_zero_u32", default)]
+    pub flags: u32,
 
     #[serde(skip_serializing_if = "if_false", default)]
     pub privileged: bool,
@@ -114,8 +115,9 @@ pub struct User {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bot: Option<BotInformation>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub online: Option<bool>,
+    pub online: bool,
+
+    pub relationship: RelationshipStatus,
 }
 
 #[derive(Debug, PartialEq, Eq, TryFromPrimitive, Copy, Clone)]
@@ -145,4 +147,8 @@ pub enum UserHint {
     Any,
     Bot,
     User,
+}
+
+pub fn if_zero_u32(t: &u32) -> bool {
+    t == &0
 }

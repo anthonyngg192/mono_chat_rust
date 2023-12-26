@@ -23,7 +23,7 @@ impl Ref {
     pub async fn as_user(&self, db: &Database) -> Result<User> {
         let (user, online) = join(db.fetch_user(&self.id), presence_is_online(&self.id)).await;
         let mut user = user?;
-        user.online = Some(online);
+        user.online = online;
         Ok(user)
     }
 

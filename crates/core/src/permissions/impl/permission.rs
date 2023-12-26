@@ -2,7 +2,6 @@ use std::{borrow::Cow, collections::HashSet};
 
 use crate::{
     database::Database,
-    get_relationship,
     models::{channel::ChannelType, user::RelationshipStatus, Channel, Member, Server, User},
     permissions::{
         defn::{
@@ -57,9 +56,9 @@ impl PermissionQuery for DatabasePermissionQuery<'_> {
                 return RelationshipStatus::User;
             }
 
-            if let Some(relations) = &self.perspective.relations {
+            if let relations = &self.perspective.relations {
                 for entry in relations {
-                    if entry.id == other_user.id {
+                    if entry.user_id == other_user.id {
                         return match entry.status {
                             RelationshipStatus::None => RelationshipStatus::None,
                             RelationshipStatus::User => RelationshipStatus::User,
@@ -470,13 +469,11 @@ pub async fn calculate_server_permission(
 
         roles.sort_by(|a, b| b.0.cmp(&a.0));
 
-        // 5. Apply allows and denies from roles.
         for (_, v) in roles {
             permissions.apply(v);
         }
     }
 
-    // 5. Revoke permissions if member is timed out.
     if member.in_timeout() {
         permissions.restrict(*ALLOW_IN_TIMEOUT);
     }
@@ -618,51 +615,6 @@ pub async fn calculate_channel_permission(
     Ok(value)
 }
 
-pub async fn calculate_user_permission(data: &mut PermissionCalculator<'_>, db: &Database) -> u32 {
-    let user = data.user.get().unwrap();
-
-    if data.perspective.privileged {
-        return u32::MAX;
-    }
-
-    let relationship = data.flag_known_relationship.cloned().unwrap_or_else(|| {
-        user.relationship
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| get_relationship(data.perspective, &user.id))
-    });
-
-    let mut permissions: u32 = 0;
-    match relationship {
-        RelationshipStatus::Friend => return u32::MAX,
-        RelationshipStatus::Blocked | RelationshipStatus::BlockedOther => {
-            return UserPermission::Access as u32
-        }
-        RelationshipStatus::Incoming | RelationshipStatus::Outgoing => {
-            permissions = UserPermission::Access as u32;
-        }
-        _ => {}
-    }
-
-    if data.flag_has_mutual_connection
-        || data
-            .perspective
-            .has_mutual_connection(db, &user.id)
-            .await
-            .unwrap_or(false)
-    {
-        permissions = UserPermission::Access + UserPermission::ViewProfile;
-
-        if user.bot.is_some() || data.perspective.bot.is_some() {
-            permissions += UserPermission::SendMessage as u32;
-        }
-
-        return permissions;
-    }
-
-    permissions
-}
-
 pub async fn calculate_user_permissions<P: PermissionQuery>(query: &mut P) -> PermissionValue {
     if query.are_we_privileged().await {
         return u64::MAX.into();
@@ -761,7 +713,7 @@ pub async fn calculate_channel_permissions<P: PermissionQuery>(query: &mut P) ->
             query.set_server_from_channel().await;
 
             if query.are_we_server_owner().await {
-                return ChannelPermission::GrantAllSafe.into();
+                ChannelPermission::GrantAllSafe.into()
             } else if query.are_we_a_member().await {
                 let mut permissions = calculate_server_permissions(query).await;
                 permissions.apply(query.get_default_channel_permissions().await);

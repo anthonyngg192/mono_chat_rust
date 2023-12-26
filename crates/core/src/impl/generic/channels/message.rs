@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use serde_json::json;
 use ulid::Ulid;
 
 use crate::{
@@ -81,7 +80,7 @@ impl Message {
         &mut self,
         db: &Database,
         channel: &Channel,
-        sender: Option<&User>,
+        sender: Option<MessageAuthor<'_>>,
     ) -> Result<()> {
         self.create_no_web_push(db, channel.id(), channel.is_direct_dm())
             .await?;
@@ -106,7 +105,7 @@ impl Message {
                 };
                 target_ids
             },
-            json!(PushNotification::new(self.clone(), sender, channel.id())).to_string(),
+            PushNotification::new(self.clone(), sender, channel.id()),
         )
         .await;
 
@@ -321,9 +320,9 @@ impl Message {
             }
         }
 
-        let (author_id) = match &author {
+        let (author_id, webhook) = match &author {
             MessageAuthor::User(user) => (user.id.clone(), None),
-            // MessageAuthor::Webhook(webhook) => (webhook.id.clone(), Some((*webhook).clone())),
+            MessageAuthor::Webhook(webhook) => (webhook.id.clone(), Some((*webhook).clone())),
             MessageAuthor::System { .. } => ("00000000000000000000000000".to_string(), None),
         };
 
@@ -337,6 +336,7 @@ impl Message {
                 .map(|interactions| interactions.into())
                 .unwrap_or_default(),
             author: author_id,
+            webhook: webhook.map(|w| w.into()),
             ..Default::default()
         };
 
@@ -434,7 +434,7 @@ impl Message {
         db: &Database,
         embed: SendableEmbed,
     ) -> Result<()> {
-        let media: Option<File> = if let id = embed.media {
+        let media: Option<File> = if let Some(id) = embed.media {
             Some(
                 db.find_and_use_attachment(&id, "attachments", "message", &self.id)
                     .await?
@@ -639,7 +639,7 @@ impl<'a> MessageAuthor<'a> {
     pub fn id(&self) -> &str {
         match self {
             MessageAuthor::User(user) => &user.id,
-            // MessageAuthor::Webhook(webhook) => &webhook.id,
+            MessageAuthor::Webhook(webhook) => &webhook.id,
             MessageAuthor::System { .. } => "00000000000000000000000000",
         }
     }
@@ -647,7 +647,7 @@ impl<'a> MessageAuthor<'a> {
     pub fn avatar(&self) -> Option<&str> {
         match self {
             MessageAuthor::User(user) => user.avatar.as_ref().map(|file| file.id.as_str()),
-            // MessageAuthor::Webhook(webhook) => webhook.avatar.as_ref().map(|file| file.id.as_str()),
+            MessageAuthor::Webhook(webhook) => webhook.avatar.as_ref().map(|file| file.id.as_str()),
             MessageAuthor::System { avatar, .. } => *avatar,
         }
     }
@@ -655,7 +655,7 @@ impl<'a> MessageAuthor<'a> {
     pub fn username(&self) -> &str {
         match self {
             MessageAuthor::User(user) => &user.username,
-            // MessageAuthor::Webhook(webhook) => &webhook.name,
+            MessageAuthor::Webhook(webhook) => &webhook.name,
             MessageAuthor::System { username, .. } => username,
         }
     }
