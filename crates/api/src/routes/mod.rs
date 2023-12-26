@@ -26,7 +26,7 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/" => (vec![], custom_openapi_spec()),
             "" => openapi_get_routes_spec![root::root],
             "/admin" => admin::routes(),
-            // "/users" => users::routes(),
+            "/users" => users::routes(),
             "/bots" => bots::routes(),
             "/channels" => channels::routes(),
             "/servers" => servers::routes(),
@@ -38,7 +38,7 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/auth/mfa" => rocket_authifier::routes::mfa::routes(),
             "/onboard" => onboard::routes(),
             "/push" => push::routes(),
-            // "/sync" => sync::routes(),
+            "/sync" => sync::routes(),
             // "/webhooks" => webhooks::routes()
         };
     } else {
@@ -47,7 +47,7 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/" => (vec![], custom_openapi_spec()),
             "" => openapi_get_routes_spec![root::root],
             "/admin" => admin::routes(),
-            // "/users" => users::routes(),
+            "/users" => users::routes(),
             "/bots" => bots::routes(),
             "/channels" => channels::routes(),
             "/servers" => servers::routes(),
@@ -59,7 +59,7 @@ pub fn mount(mut rocket: Rocket<Build>) -> Rocket<Build> {
             "/auth/mfa" => rocket_authifier::routes::mfa::routes(),
             "/onboard" => onboard::routes(),
             "/push" => push::routes(),
-            // "/sync" => sync::routes()
+            "/sync" => sync::routes()
         };
     }
 
