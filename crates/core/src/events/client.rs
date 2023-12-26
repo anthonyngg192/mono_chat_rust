@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     models::{
-        channel::{FieldsChannel, PartialChannel},
+        channel::{FieldsChannel, FieldsWebhook, PartialChannel, PartialWebhook, Webhook},
         message::{AppendMessage, PartialMessage},
         server::{FieldsRole, FieldsServer, PartialRole, PartialServer},
         server_member::{FieldsMember, MemberCompositeKey, PartialMember},
@@ -213,6 +213,18 @@ pub enum EventV1 {
     },
 
     ReportCreate(Report),
+
+    WebhookCreate(Webhook),
+
+    WebhookUpdate {
+        id: String,
+        data: PartialWebhook,
+        remove: Vec<FieldsWebhook>,
+    },
+
+    WebhookDelete {
+        id: String,
+    },
 
     Auth(AuthifierEvent),
 }

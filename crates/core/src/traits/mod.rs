@@ -36,6 +36,10 @@ pub mod ratelimiter {
     pub mod ratelimit;
 }
 
+pub mod webhooks {
+    pub mod webhook;
+}
+
 pub use admin::migrations::AbstractMigrations;
 pub use admin::stats::AbstractStats;
 
@@ -60,6 +64,8 @@ pub use safety::snapshot::AbstractSnapshot;
 
 pub use ratelimiter::ratelimit::AbstractRatelimitEvent;
 
+pub use webhooks::webhook::AbstractWebhook;
+
 pub trait AbstractDatabase:
     Sync
     + Send
@@ -80,5 +86,6 @@ pub trait AbstractDatabase:
     + AbstractReport
     + AbstractSnapshot
     + AbstractRatelimitEvent
+    + AbstractWebhook
 {
 }

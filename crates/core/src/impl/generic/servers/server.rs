@@ -17,10 +17,10 @@ use crate::{
         Channel, Member, Server, ServerBan, User,
     },
     permissions::{
-        defn::{ChannelPermission, OverrideField},
+        defn::{ChannelPermission, OverrideField, DEFAULT_PERMISSION_SERVER},
         perms,
     },
-    Error, Result, DEFAULT_PERMISSION_SERVER,
+    Error, Result,
 };
 
 impl Server {
@@ -35,7 +35,6 @@ impl Server {
     }
 
     pub async fn create(
-        &self,
         db: &Database,
         data: DataCreateServer,
         owner: &User,

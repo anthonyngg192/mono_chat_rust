@@ -5,14 +5,15 @@ use crate::{
     events::client::EventV1,
     models::{
         channel::{
-            DataCreateServerChannel, FieldsChannel, LegacyServerChannelType, MessageWebhook,
-            PartialChannel, ResponseWebhook, Webhook,
+            DataCreateGroup, DataCreateServerChannel, FieldsChannel, LegacyServerChannelType,
+            MessageWebhook, PartialChannel, ResponseWebhook, Webhook,
         },
         message::SystemMessage,
         server::PartialServer,
-        Channel, Server,
+        Channel, Server, User,
     },
     permissions::defn::OverrideField,
+    sys_config::config,
     tasks::ack::AckEvent,
     Error, Result,
 };
@@ -217,33 +218,32 @@ impl Channel {
     }
 
     /// Add user to a group
-    pub async fn add_user_to_group(&mut self, db: &Database, user: &str, by: &str) -> Result<()> {
+    pub async fn add_user_to_group(&mut self, db: &Database, user: &User, by: &str) -> Result<()> {
         if let Channel::Group { recipients, .. } = self {
-            let user = user.to_string();
-            if recipients.contains(&user) {
+            if recipients.contains(&String::from(&user.id)) {
                 return Err(Error::AlreadyInGroup);
             }
 
-            recipients.push(user);
+            recipients.push(String::from(&user.id));
         }
 
         match &self {
             Channel::Group { id, .. } => {
-                db.add_user_to_group(id, user).await?;
+                db.add_user_to_group(id, &user.id).await?;
 
                 EventV1::ChannelGroupJoin {
                     id: id.to_string(),
-                    user: user.to_string(),
+                    user: user.id.to_string(),
                 }
                 .p(id.to_string())
                 .await;
 
                 EventV1::ChannelCreate(self.clone())
-                    .private(user.to_string())
+                    .private(user.id.to_string())
                     .await;
 
                 SystemMessage::UserAdded {
-                    id: user.to_string(),
+                    id: user.id.to_string(),
                     by: by.to_string(),
                 }
                 .into_message(id.to_string())
@@ -302,12 +302,12 @@ impl Channel {
         data: DataCreateServerChannel,
         update_server: bool,
     ) -> Result<Channel> {
-        // let config = config().await;
-        // if server.channels.len() > config.features.limits.default.server_channels {
-        //     return Err(create_error!(TooManyChannels {
-        //         max: config.features.limits.default.server_channels,
-        //     }));
-        // };
+        let config = config().await;
+        if server.channels.len() > config.features.limits.default.server_channels {
+            return Err(Error::TooManyChannels {
+                max: config.features.limits.default.server_channels,
+            });
+        };
 
         let id = ulid::Ulid::new().to_string();
         let channel = match data.channel_type {
@@ -349,6 +349,115 @@ impl Channel {
             EventV1::ChannelCreate(channel.clone())
                 .p(server.id.clone())
                 .await;
+        }
+
+        Ok(channel)
+    }
+
+    pub async fn remove_user_from_group(
+        &self,
+        db: &Database,
+        user: &str,
+        by: Option<&str>,
+        silent: bool,
+    ) -> Result<()> {
+        match &self {
+            Channel::Group {
+                id,
+                owner,
+                recipients,
+                ..
+            } => {
+                if user == owner {
+                    if let Some(new_owner) = recipients.iter().find(|x| *x != user) {
+                        db.update_channel(
+                            id,
+                            &PartialChannel {
+                                owner: Some(new_owner.into()),
+                                ..Default::default()
+                            },
+                            vec![],
+                        )
+                        .await?;
+
+                        SystemMessage::ChannelOwnershipChanged {
+                            from: owner.to_string(),
+                            to: new_owner.into(),
+                        }
+                        .into_message(id.to_string())
+                        .create(db, self, None)
+                        .await
+                        .ok();
+                    } else {
+                        db.delete_channel(self).await?;
+                        return Ok(());
+                    }
+
+                    db.remove_user_from_group(id, user).await?;
+
+                    EventV1::ChannelGroupLeave {
+                        id: id.to_string(),
+                        user: user.to_string(),
+                    }
+                    .p(id.to_string())
+                    .await;
+
+                    if !silent {
+                        if let Some(by) = by {
+                            SystemMessage::UserRemove {
+                                id: user.to_string(),
+                                by: by.to_string(),
+                            }
+                        } else {
+                            SystemMessage::UserLeft {
+                                id: user.to_string(),
+                            }
+                        }
+                        .into_message(id.to_string())
+                        .create(db, self, None)
+                        .await
+                        .ok();
+                    }
+                }
+                Ok(())
+            }
+            _ => Err(Error::InvalidOperation),
+        }
+    }
+
+    pub async fn create_group(
+        db: &Database,
+        mut data: DataCreateGroup,
+        owner_id: String,
+    ) -> Result<Channel> {
+        data.users.insert(owner_id.to_string());
+
+        let config = config().await;
+        if data.users.len() > config.features.limits.default.group_size {
+            return Err(Error::GroupTooLarge {
+                max: config.features.limits.default.group_size,
+            });
+        }
+
+        let recipients = data.users.into_iter().collect::<Vec<String>>();
+        let channel = Channel::Group {
+            id: ulid::Ulid::new().to_string(),
+
+            name: data.name,
+            owner: owner_id,
+            description: data.description,
+            recipients: recipients.clone(),
+            icon: None,
+            last_message_id: None,
+            permissions: None,
+            permission: None,
+        };
+
+        db.insert_channel(&channel).await?;
+
+        let event = EventV1::ChannelCreate(channel.clone());
+        for recipient in recipients {
+            event.clone().private(recipient).await;
         }
 
         Ok(channel)

@@ -149,59 +149,58 @@ pub struct PartialChannel {
     pub last_message_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub enum LegacyServerChannelType {
     Text,
     Voice,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Validate, JsonSchema)]
 #[serde(tag = "data_server_channel")]
-#[cfg_attr(feature = "validator", derive(validator::Validate))]
 pub struct DataCreateServerChannel {
     #[serde(rename = "type")]
     pub channel_type: LegacyServerChannelType,
 
-    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 32)))]
+    #[validate(length(min = 1, max = 32))]
     pub name: String,
 
-    #[cfg_attr(feature = "validator", validate(length(min = 0, max = 1024)))]
+    #[validate(length(min = 0, max = 1024))]
     pub description: Option<String>,
 }
 
 #[derive(Validate, Serialize, Deserialize, Clone)]
 pub struct DataEditChannel {
-    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 32)))]
+    #[validate(length(min = 1, max = 32))]
     pub name: Option<String>,
 
-    #[cfg_attr(feature = "validator", validate(length(min = 0, max = 1024)))]
+    #[validate(length(min = 0, max = 1024))]
     pub description: Option<String>,
 
     pub owner: Option<String>,
 
-    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 128)))]
+    #[validate(length(min = 1, max = 128))]
     pub icon: Option<String>,
 
     pub nsfw: Option<bool>,
 
     pub archived: Option<bool>,
 
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[serde(default)]
     pub remove: Option<Vec<FieldsChannel>>,
 }
 
-#[derive(Validate, Serialize, Deserialize, Clone, Default)]
+#[derive(Validate, Serialize, Deserialize, Clone, Default, JsonSchema)]
 pub struct DataCreateGroup {
-    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 32)))]
+    #[validate(length(min = 1, max = 32))]
     pub name: String,
 
-    #[cfg_attr(feature = "validator", validate(length(min = 0, max = 1024)))]
+    #[validate(length(min = 0, max = 1024))]
     pub description: Option<String>,
 
-    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 128)))]
+    #[validate(length(min = 1, max = 128))]
     pub icon: Option<String>,
 
-    #[cfg_attr(feature = "validator", validate(length(min = 0, max = 49)))]
+    #[validate(length(min = 0, max = 49))]
     #[serde(default)]
     pub users: HashSet<String>,
 
@@ -233,13 +232,12 @@ pub struct MessageWebhook {
     pub avatar: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
-#[cfg_attr(feature = "validator", derive(validator::Validate))]
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Validate)]
 pub struct DataEditWebhook {
-    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 32)))]
+    #[validate(length(min = 1, max = 32))]
     pub name: Option<String>,
 
-    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 128)))]
+    #[validate(length(min = 1, max = 128))]
     pub avatar: Option<String>,
 
     pub permissions: Option<u64>,

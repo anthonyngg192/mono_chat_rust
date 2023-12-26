@@ -46,6 +46,10 @@ pub mod ratelimiter {
     pub mod ratelimit_event;
 }
 
+pub mod webhooks {
+    pub mod webhook;
+}
+
 #[derive(Debug, Clone)]
 pub struct MongoDb(pub mongodb::Client);
 

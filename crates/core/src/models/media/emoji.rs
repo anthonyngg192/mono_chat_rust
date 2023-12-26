@@ -32,7 +32,7 @@ pub struct Emoji {
     pub nsfw: bool,
 }
 
-#[derive(Serialize, Deserialize, Validate)]
+#[derive(Serialize, Deserialize, Validate, JsonSchema)]
 pub struct DataCreateEmoji {
     #[validate(length(min = 1, max = 32), regex = "RE_EMOJI")]
     pub name: String,

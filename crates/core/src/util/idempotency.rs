@@ -4,9 +4,13 @@ use crate::{Error, Result};
 
 use async_std::sync::Mutex;
 use once_cell::sync::Lazy;
+use revolt_rocket_okapi::{
+    gen::OpenApiGenerator,
+    request::{OpenApiFromRequest, RequestHeaderInput},
+};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct IdempotencyKey {
     key: String,
 }
@@ -74,13 +78,12 @@ impl<'r> OpenApiFromRequest<'r> for IdempotencyKey {
     }
 }
 
-#[cfg(feature = "rocket-impl")]
 use rocket::{
     http::Status,
     request::{FromRequest, Outcome},
 };
+use validator::ValidationErrors;
 
-#[cfg(feature = "rocket-impl")]
 #[async_trait]
 impl<'r> FromRequest<'r> for IdempotencyKey {
     type Error = Error;
@@ -95,16 +98,16 @@ impl<'r> FromRequest<'r> for IdempotencyKey {
             if key.len() > 64 {
                 return Outcome::Failure((
                     Status::BadRequest,
-                    create_error!(FailedValidation {
-                        error: "idempotency key too long".to_string(),
-                    }),
+                    Error::FailedValidation {
+                        error: ValidationErrors::new(),
+                    },
                 ));
             }
 
             let idempotency = IdempotencyKey { key };
             let mut cache = TOKEN_CACHE.lock().await;
             if cache.get(&idempotency.key).is_some() {
-                return Outcome::Failure((Status::Conflict, create_error!(DuplicateNonce)));
+                return Outcome::Failure((Status::Conflict, Error::DuplicateNonce));
             }
 
             cache.put(idempotency.key.clone(), ());
@@ -114,5 +117,15 @@ impl<'r> FromRequest<'r> for IdempotencyKey {
         Outcome::Success(IdempotencyKey {
             key: ulid::Ulid::new().to_string(),
         })
+    }
+}
+
+impl<'r> OpenApiFromRequest<'r> for IdempotencyKey {
+    fn from_request_input(
+        _gen: &mut OpenApiGenerator,
+        _name: String,
+        _required: bool,
+    ) -> revolt_rocket_okapi::Result<RequestHeaderInput> {
+        Ok(RequestHeaderInput::None)
     }
 }

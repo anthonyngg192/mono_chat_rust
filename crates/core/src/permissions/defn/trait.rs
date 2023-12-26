@@ -1,7 +1,6 @@
-use crate::{
-    models::{channel::ChannelType, user::RelationshipStatus},
-    Override,
-};
+use crate::models::{channel::ChannelType, user::RelationshipStatus};
+
+use super::Override;
 
 #[async_trait]
 pub trait PermissionQuery {

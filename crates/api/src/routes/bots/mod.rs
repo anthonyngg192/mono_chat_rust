@@ -10,5 +10,13 @@ mod fetch_public;
 mod invite;
 
 pub fn routes() -> (Vec<Route>, OpenApi) {
-    openapi_get_routes_spec![]
+    openapi_get_routes_spec![
+        create::create_bot,
+        delete::delete_bot,
+        edit::edit_bot,
+        fetch::fetch_bot,
+        fetch_owned::fetch_owned_bots,
+        fetch_public::fetch_public_bot,
+        invite::invite_bot
+    ]
 }

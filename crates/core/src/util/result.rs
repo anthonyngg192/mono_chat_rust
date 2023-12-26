@@ -1,13 +1,15 @@
-use std::io::Cursor;
-
+use revolt_okapi::openapi3::SchemaObject;
+use revolt_rocket_okapi::revolt_okapi::openapi3;
 use rocket::{
     http::{ContentType, Status},
     response::{self, Responder},
     Response,
 };
+use schemars::schema::Schema;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::io::Cursor;
 use validator::ValidationErrors;
 
 use crate::permissions::defn::{ChannelPermission, UserPermission};
@@ -49,6 +51,14 @@ pub enum Error {
     },
     TooManyEmoji,
 
+    TooManyChannels {
+        max: usize,
+    },
+
+    TooManyRoles {
+        max: usize,
+    },
+
     ReachedMaximumBots,
     IsBot,
     BotIsPrivate,
@@ -77,6 +87,7 @@ pub enum Error {
     InvalidProperty,
     InvalidSession,
     DuplicateNonce,
+    VosoUnavailable,
     NotFound,
     NoEffect,
     FailedValidation {
@@ -134,8 +145,7 @@ impl<'r> Responder<'r, 'static> for Error {
             Error::UnknownAttachment => Status::BadRequest,
             Error::CannotEditMessage => Status::Forbidden,
             Error::CannotJoinCall => Status::BadRequest,
-            Error::TooManyAttachments => Status::BadRequest,
-            Error::TooManyReplies => Status::BadRequest,
+
             Error::EmptyMessage => Status::UnprocessableEntity,
             Error::PayloadTooLarge => Status::UnprocessableEntity,
             Error::CannotRemoveYourself => Status::BadRequest,
@@ -146,8 +156,13 @@ impl<'r> Responder<'r, 'static> for Error {
             Error::UnknownServer => Status::NotFound,
             Error::InvalidRole => Status::NotFound,
             Error::Banned => Status::Forbidden,
+
             Error::TooManyServers { .. } => Status::Forbidden,
+            Error::TooManyChannels { .. } => Status::BadRequest,
+            Error::TooManyRoles { .. } => Status::BadRequest,
             Error::TooManyEmoji => Status::BadRequest,
+            Error::TooManyAttachments => Status::BadRequest,
+            Error::TooManyReplies => Status::BadRequest,
 
             Error::ReachedMaximumBots => Status::BadRequest,
             Error::IsBot => Status::BadRequest,
@@ -169,6 +184,7 @@ impl<'r> Responder<'r, 'static> for Error {
             Error::InvalidProperty => Status::BadRequest,
             Error::InvalidSession => Status::Unauthorized,
             Error::DuplicateNonce => Status::Conflict,
+            Error::VosoUnavailable => Status::BadRequest,
             Error::NotFound => Status::NotFound,
             Error::NoEffect => Status::Ok,
             Error::FailedValidation { .. } => Status::BadRequest,
@@ -186,39 +202,46 @@ impl<'r> Responder<'r, 'static> for Error {
     }
 }
 
-#[macro_export]
-macro_rules! create_error {
-    ( $error: ident $( $tt:tt )? ) => {
-        $crate::Error {
-            error_type: $crate::Error::$error $( $tt )?,
-            location: format!("{}:{}:{}", file!(), line!(), column!()),
+impl revolt_rocket_okapi::response::OpenApiResponderInner for Error {
+    fn responses(
+        gen: &mut revolt_rocket_okapi::gen::OpenApiGenerator,
+    ) -> std::result::Result<openapi3::Responses, revolt_rocket_okapi::OpenApiError> {
+        let mut content = revolt_okapi::Map::new();
+
+        let settings = schemars::gen::SchemaSettings::default().with(|s| {
+            s.option_nullable = true;
+            s.option_add_null_type = false;
+            s.definitions_path = "#/components/schemas/".to_string();
+        });
+
+        let mut schema_generator = settings.into_generator();
+        let schema = schema_generator.root_schema_for::<Error>();
+
+        let definitions = gen.schema_generator().definitions_mut();
+        for (key, value) in schema.definitions {
+            definitions.insert(key, value);
         }
-    };
-}
 
-#[macro_export]
-macro_rules! create_database_error {
-    ( $operation: expr, $collection: expr ) => {
-        create_error!(DatabaseError {
-            operation: $operation.to_string(),
-            collection: $collection.to_string()
+        definitions.insert("Error".to_string(), Schema::Object(schema.schema));
+
+        content.insert(
+            "application/json".to_string(),
+            openapi3::MediaType {
+                schema: Some(SchemaObject {
+                    reference: Some("#/components/schemas/Error".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        );
+
+        Ok(openapi3::Responses {
+            default: Some(openapi3::RefOr::Object(openapi3::Response {
+                content,
+                description: "An error occurred.".to_string(),
+                ..Default::default()
+            })),
+            ..Default::default()
         })
-    };
-}
-
-#[macro_export]
-#[cfg(debug_assertions)]
-macro_rules! query {
-    ( $self: ident, $type: ident, $collection: expr, $($rest:expr),+ ) => {
-        Ok($self.$type($collection, $($rest),+).await.unwrap())
-    };
-}
-
-#[macro_export]
-#[cfg(not(debug_assertions))]
-macro_rules! query {
-    ( $self: ident, $type: ident, $collection: expr, $($rest:expr),+ ) => {
-        $self.$type($collection, $($rest),+).await
-            .map_err(|_| create_database_error!(stringify!($type), $collection))
-    };
+    }
 }

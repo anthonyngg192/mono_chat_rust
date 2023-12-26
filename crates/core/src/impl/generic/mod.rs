@@ -28,8 +28,13 @@ pub mod users {
 
 pub mod safety {
     pub mod report;
+    pub mod snapshot;
 }
 
 pub mod ratelimiter {
     pub mod ratelimit_event;
+}
+
+pub mod webhooks {
+    pub mod webhook;
 }

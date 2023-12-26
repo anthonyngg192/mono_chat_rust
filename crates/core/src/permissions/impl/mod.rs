@@ -1,4 +1,6 @@
-use crate::{ChannelPermission, Error, Override, Result, UserPermission};
+use crate::{Error, Result};
+
+use super::defn::{ChannelPermission, Override, UserPermission};
 
 pub mod permission;
 pub mod user;

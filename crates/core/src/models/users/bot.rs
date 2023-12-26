@@ -1,9 +1,14 @@
+use crate::models::User;
 use num_enum::TryFromPrimitive;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use revolt_optional_struct::OptionalStruct;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use validator::Validate;
 
-use crate::models::User;
+pub static RE_USERNAME: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\p{L}|[\d_.-])+$").unwrap());
+
 pub fn if_false(t: &bool) -> bool {
     !t
 }
@@ -15,7 +20,7 @@ pub enum BogFlags {
     Official = 2,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, OptionalStruct, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, OptionalStruct, Default, JsonSchema)]
 #[optional_derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
 #[optional_name = "PartialBot"]
 #[opt_skip_serializing_none]
@@ -59,48 +64,35 @@ pub enum BotFlags {
     Official = 2,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct PublicBot {
-    #[cfg_attr(feature = "serde", serde(rename = "_id"))]
+    #[serde(rename = "_id")]
     pub id: String,
 
     pub username: String,
 
-    #[cfg_attr(
-        feature = "serde",
-        serde(skip_serializing_if = "String::is_empty", default)
-    )]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub avatar: String,
 
-    #[cfg_attr(
-        feature = "serde",
-        serde(skip_serializing_if = "String::is_empty", default)
-    )]
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub description: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct FetchBotResponse {
     pub bot: Bot,
     pub user: User,
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "validator", derive(validator::Validate))]
+#[derive(Serialize, Deserialize, Default, Validate, JsonSchema)]
 pub struct DataCreateBot {
-    #[cfg_attr(
-        feature = "validator",
-        validate(length(min = 2, max = 32), regex = "super::RE_USERNAME")
-    )]
+    #[validate(length(min = 1, max = 128), regex = "RE_USERNAME")]
     pub name: String,
 }
 
-#[derive(Default, Serialize)]
-#[cfg_attr(feature = "validator", derive(validator::Validate))]
+#[derive(Deserialize, Default, Serialize, Validate, JsonSchema)]
 pub struct DataEditBot {
-    #[cfg_attr(
-        feature = "validator",
-        validate(length(min = 2, max = 32), regex = "super::RE_USERNAME")
-    )]
+    #[validate(length(min = 1, max = 32), regex = "RE_USERNAME")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
@@ -108,20 +100,20 @@ pub struct DataEditBot {
 
     pub analytics: Option<bool>,
 
-    #[cfg_attr(feature = "validator", validate(length(min = 1, max = 2048)))]
+    #[validate(length(min = 1, max = 2048))]
     pub interactions_url: Option<String>,
 
-    #[cfg_attr(feature = "validator", validate(length(min = 1)))]
+    #[validate(length(min = 1))]
     pub remove: Option<Vec<FieldsBot>>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, JsonSchema, Clone)]
 #[serde(untagged)]
 pub enum InviteBotDestination {
     Server { server: String },
     Group { group: String },
 }
-
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct OwnedBotsResponse {
     pub bots: Vec<Bot>,
     pub users: Vec<User>,

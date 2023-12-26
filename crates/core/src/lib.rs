@@ -31,11 +31,10 @@ pub mod util;
 pub mod web;
 
 mod database;
-mod permissions;
+pub mod permissions;
 mod traits;
 
 pub use database::*;
-pub use permissions::defn::*;
 pub use permissions::{get_relationship, perms};
 pub use presence::*;
 pub use traits::*;

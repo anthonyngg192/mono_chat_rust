@@ -6,6 +6,7 @@ pub mod r#macro;
 pub mod manipulation;
 pub mod pfp;
 pub mod r#ref;
+pub mod reference;
 pub mod regex;
 pub mod result;
 pub mod value;

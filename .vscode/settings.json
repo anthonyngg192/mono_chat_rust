@@ -1,13 +1,18 @@
 {
   "breadcrumbs.enabled": true,
-  "cSpell.enableFiletypes": ["rust"],
-  "cSpell.ignorePaths": ["**/*.json"],
+  "cSpell.enableFiletypes": [
+    "rust"
+  ],
+  "cSpell.ignorePaths": [
+    "**/*.json"
+  ],
   "cSpell.words": [
     "authifier",
     "Bandcamp",
     "bincode",
     "bitfield",
     "bson",
+    "chrono",
     "COLOUR",
     "customisation",
     "dashmap",
@@ -24,6 +29,7 @@
     "Isahc",
     "Lightspeed",
     "linkify",
+    "masq",
     "Msgpack",
     "Onboarded",
     "oneshot",
@@ -54,6 +60,9 @@
   "nixEnvSelector.nixFile": "${workspaceRoot}/default.nix",
   "nixEnvSelector.suggestion": false,
   "rust-analyzer.checkOnSave.command": "clippy",
-  "rust-analyzer.linkedProjects": ["./Cargo.toml", "./Cargo.toml"],
+  "rust-analyzer.linkedProjects": [
+    "./Cargo.toml",
+    "./Cargo.toml"
+  ],
   "rust-analyzer.showUnlinkedFileNotification": false
 }

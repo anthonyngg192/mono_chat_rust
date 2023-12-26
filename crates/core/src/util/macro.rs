@@ -24,12 +24,18 @@ macro_rules! auto_derived_partial {
     };
 }
 
-/// Utility function to check if a boolean value is false
 pub fn if_false(t: &bool) -> bool {
     !t
 }
 
-/// Utility function to check if an u32 is zero
 pub fn if_zero_u32(t: &u32) -> bool {
     t == &0
+}
+
+#[macro_export]
+#[cfg(debug_assertions)]
+macro_rules! query {
+    ( $self: ident, $type: ident, $collection: expr, $($rest:expr),+ ) => {
+        Ok($self.$type($collection, $($rest),+).await.unwrap())
+    };
 }

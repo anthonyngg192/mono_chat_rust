@@ -131,3 +131,10 @@ impl fmt::Display for ChannelPermission {
         fmt::Debug::fmt(self, f)
     }
 }
+
+pub static DEFAULT_WEBHOOK_PERMISSIONS: Lazy<u64> = Lazy::new(|| {
+    ChannelPermission::SendMessage
+        + ChannelPermission::SendEmbeds
+        + ChannelPermission::Masquerade
+        + ChannelPermission::React
+});

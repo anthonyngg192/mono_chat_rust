@@ -1,14 +1,12 @@
-use std::collections::HashSet;
-
 use crate::{
     database::Database,
     events::client::EventV1,
     models::{
-        user::{FieldsUser, PartialUser, Presence, RelationshipStatus, UserBadges, UserHint},
+        user::{FieldsUser, PartialUser, Presence, RelationshipStatus, UserHint},
         User,
     },
     permissions::{
-        defn::UserPerms,
+        defn::{UserPermission, UserPerms},
         perms,
         r#impl::{
             permission::{calculate_user_permissions, DatabasePermissionQuery},
@@ -16,26 +14,11 @@ use crate::{
         },
     },
     presence::presence_filter_online,
-    Error, Result, UserPermission,
+    Error, Result,
 };
 use futures::try_join;
-use once_cell::sync::Lazy;
 use redis_kiss::{get_connection, AsyncCommands};
 use ulid::Ulid;
-
-pub static DISCRIMINATOR_SEARCH_SPACE: Lazy<HashSet<String>> = Lazy::new(|| {
-    let mut set = (2..9999)
-        .map(|v| format!("{:0>4}", v))
-        .collect::<HashSet<String>>();
-
-    for discrim in [
-        123, 1234, 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 9999,
-    ] {
-        set.remove(&format!("{:0>4}", discrim));
-    }
-
-    set.into_iter().collect()
-});
 
 impl User {
     pub async fn update<'a>(
@@ -100,20 +83,13 @@ impl User {
                 .is_empty())
     }
 
+    /*
+    Resolve issue multiple GMT
+     */
     #[must_use]
     pub fn foreign(mut self) -> User {
         self.profile = None;
         self.relations = vec![];
-
-        let mut badges = self.badges;
-        if let Ok(_id) = ulid::Ulid::from_string(&self.id) {
-            // // Yes, this is hard-coded
-            // // No, I don't care + ratio
-            if _id.datetime().timestamp_millis() < 1629638578431 {
-                badges = badges + (UserBadges::EarlyAdopter as u32);
-            }
-        }
-        self.badges = badges;
 
         if let Some(status) = &self.status {
             if let Some(presence) = &status.presence {
@@ -137,10 +113,9 @@ impl User {
             return RelationshipStatus::User;
         }
 
-        if let relations = &self.relations {
-            if let Some(relationship) = relations.iter().find(|x| x.user_id == user_b) {
-                return relationship.status.clone();
-            }
+        let relations = &self.relations;
+        if let Some(relationship) = relations.iter().find(|x| x.user_id == user_b) {
+            return relationship.status.clone();
         }
 
         RelationshipStatus::None
@@ -281,7 +256,7 @@ impl User {
 
         EventV1::UserRelationship {
             id: self.id.clone(),
-            user: target.clone().into(db, Some(&*self)).await,
+            user: target.clone().into(db, Some(self)).await,
         }
         .private(self.id.clone())
         .await;
@@ -412,7 +387,7 @@ impl User {
     }
 
     pub async fn create<I, D>(
-        self,
+        // self,
         db: &Database,
         username: String,
         account_id: I,
@@ -470,35 +445,42 @@ impl User {
         User {
             username: self.username,
             display_name: self.display_name,
-            avatar: self.avatar.map(|file| file.into()),
+            avatar: self.avatar,
             relations: if let Some(User { id, .. }) = perspective {
                 if id == &self.id {
                     self.relations
-                        .into_iter()
-                        .map(|relation| relation.into())
-                        .collect()
                 } else {
                     vec![]
                 }
             } else {
                 vec![]
             },
-            badges: self.badges as u32,
-            status: if can_see_profile {
-                self.status.map(|status| status.into())
-            } else {
-                None
-            },
-            profile: if can_see_profile {
-                self.profile.map(|profile| profile.into())
-            } else {
-                None
-            },
-            flags: self.flags as u32,
+            badges: self.badges,
+            status: if can_see_profile { self.status } else { None },
+            profile: if can_see_profile { self.profile } else { None },
+            flags: self.flags,
             privileged: self.privileged,
-            bot: self.bot.map(|bot| bot.into()),
+            bot: self.bot,
             relationship,
             online: can_see_profile && is_online(&self.id).await,
+            id: self.id,
+        }
+    }
+
+    pub async fn into_self(self) -> User {
+        User {
+            username: self.username,
+            display_name: self.display_name,
+            avatar: self.avatar,
+            relations: self.relations,
+            badges: self.badges,
+            status: self.status,
+            profile: self.profile,
+            flags: self.flags,
+            privileged: self.privileged,
+            bot: self.bot,
+            relationship: RelationshipStatus::User,
+            online: is_online(&self.id).await,
             id: self.id,
         }
     }

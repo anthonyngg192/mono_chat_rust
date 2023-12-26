@@ -27,5 +27,30 @@ mod webhook_create;
 mod webhook_fetch_all;
 
 pub fn routes() -> (Vec<Route>, OpenApi) {
-    openapi_get_routes_spec![]
+    openapi_get_routes_spec![
+        channel_ack::req,
+        channel_fetch::fetch_channel,
+        channel_delete::req,
+        channel_edit::req,
+        group_add_member::req,
+        group_create::create_group,
+        group_remove_member::req,
+        members_fetch::req,
+        invite_create::req,
+        message_bulk_delete::req,
+        message_clear_reactions::clear_reactions,
+        message_delete::req,
+        message_fetch::req,
+        message_send::message_send,
+        message_unreact::unreact_message,
+        permissions_set_default::req,
+        message_query::req,
+        message_search::req,
+        message_edit::req,
+        message_react::react_message,
+        permissions_set::req,
+        voice_join::req,
+        webhook_create::req,
+        webhook_fetch_all::req,
+    ]
 }

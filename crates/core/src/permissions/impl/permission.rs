@@ -5,14 +5,13 @@ use crate::{
     models::{channel::ChannelType, user::RelationshipStatus, Channel, Member, Server, User},
     permissions::{
         defn::{
-            ChannelPermission, Override, Permissions, Perms, ALLOW_IN_TIMEOUT,
-            DEFAULT_PERMISSION_DIRECT_MESSAGE, DEFAULT_PERMISSION_SAVED_MESSAGES,
+            ChannelPermission, Override, PermissionQuery, Permissions, Perms, UserPermission,
+            ALLOW_IN_TIMEOUT, DEFAULT_PERMISSION_DIRECT_MESSAGE, DEFAULT_PERMISSION_SAVED_MESSAGES,
             DEFAULT_PERMISSION_VIEW_ONLY,
         },
         PermissionCalculator,
     },
     util::result::Result,
-    PermissionQuery, UserPermission,
 };
 
 use super::{super::ChannelPermission::GrantAllSafe, PermissionValue};
@@ -56,19 +55,18 @@ impl PermissionQuery for DatabasePermissionQuery<'_> {
                 return RelationshipStatus::User;
             }
 
-            if let relations = &self.perspective.relations {
-                for entry in relations {
-                    if entry.user_id == other_user.id {
-                        return match entry.status {
-                            RelationshipStatus::None => RelationshipStatus::None,
-                            RelationshipStatus::User => RelationshipStatus::User,
-                            RelationshipStatus::Friend => RelationshipStatus::Friend,
-                            RelationshipStatus::Outgoing => RelationshipStatus::Outgoing,
-                            RelationshipStatus::Incoming => RelationshipStatus::Incoming,
-                            RelationshipStatus::Blocked => RelationshipStatus::Blocked,
-                            RelationshipStatus::BlockedOther => RelationshipStatus::BlockedOther,
-                        };
-                    }
+            let relations = &self.perspective.relations;
+            for entry in relations {
+                if entry.user_id == other_user.id {
+                    return match entry.status {
+                        RelationshipStatus::None => RelationshipStatus::None,
+                        RelationshipStatus::User => RelationshipStatus::User,
+                        RelationshipStatus::Friend => RelationshipStatus::Friend,
+                        RelationshipStatus::Outgoing => RelationshipStatus::Outgoing,
+                        RelationshipStatus::Incoming => RelationshipStatus::Incoming,
+                        RelationshipStatus::Blocked => RelationshipStatus::Blocked,
+                        RelationshipStatus::BlockedOther => RelationshipStatus::BlockedOther,
+                    };
                 }
             }
         }

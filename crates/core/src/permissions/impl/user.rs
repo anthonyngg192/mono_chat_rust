@@ -2,10 +2,9 @@ use crate::{
     database::Database,
     models::{user::RelationshipStatus, User},
     permissions::{
-        defn::{UserPermissions, UserPerms},
+        defn::{UserPermission, UserPermissions, UserPerms},
         PermissionCalculator,
     },
-    UserPermission,
 };
 
 impl PermissionCalculator<'_> {
@@ -25,10 +24,9 @@ pub fn get_relationship(a: &User, b: &str) -> RelationshipStatus {
         return RelationshipStatus::User;
     }
 
-    if let relations = &a.relations {
-        if let Some(relationship) = relations.iter().find(|x| x.user_id == b) {
-            return relationship.status.clone();
-        }
+    let relations = &a.relations;
+    if let Some(relationship) = relations.iter().find(|x| x.user_id == b) {
+        return relationship.status.clone();
     }
 
     RelationshipStatus::None

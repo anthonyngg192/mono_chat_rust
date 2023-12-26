@@ -104,8 +104,8 @@ pub struct Interactions {
     pub restrict_reactions: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, OptionalStruct, Default)]
-#[optional_derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, OptionalStruct, Default, JsonSchema)]
+#[optional_derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema)]
 #[optional_name = "PartialMessage"]
 #[opt_some_priority]
 pub struct Message {
@@ -189,7 +189,7 @@ pub struct MessageQuery {
     pub time_period: MessageTimePeriod,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema, Clone)]
 pub enum BulkMessageResponse {
     JustMessage(Vec<Message>),
 

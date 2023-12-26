@@ -12,8 +12,9 @@ use crate::{
         },
         Channel, Emoji, File, Message, User,
     },
-    permissions::{defn::ChannelPermission, PermissionCalculator},
+    permissions::{defn::ChannelPermission, r#impl::PermissionValue},
     presence::presence_filter_online,
+    sys_config::config,
     tasks::{self, ack::AckEvent},
     types::{
         january::{Embed, Text},
@@ -157,20 +158,15 @@ impl Message {
         Ok(())
     }
 
-    pub fn validate_sum(
-        content: &Option<String>,
-        embeds: &Option<Vec<SendableEmbed>>,
-    ) -> Result<()> {
+    pub fn validate_sum(content: &Option<String>, embeds: &[SendableEmbed]) -> Result<()> {
         let mut running_total = 0;
         if let Some(content) = content {
             running_total += content.len();
         }
 
-        if let Some(embeds) = embeds {
-            for embed in embeds {
-                if let Some(desc) = &embed.description {
-                    running_total += desc.len();
-                }
+        for embed in embeds {
+            if let Some(desc) = &embed.description {
+                running_total += desc.len();
             }
         }
 
@@ -330,11 +326,8 @@ impl Message {
         let mut message = Message {
             id: message_id.clone(),
             channel: channel.id().to_string(),
-            masquerade: data.masquerade.map(|masquerade| masquerade.into()),
-            interactions: data
-                .interactions
-                .map(|interactions| interactions.into())
-                .unwrap_or_default(),
+            masquerade: data.masquerade,
+            interactions: data.interactions.unwrap_or_default(),
             author: author_id,
             webhook: webhook.map(|w| w.into()),
             ..Default::default()
@@ -422,7 +415,7 @@ impl Message {
                     _ => vec![],
                 }
             },
-            PushNotification::from(self.clone().into(), Some(author), &channel.id()).await,
+            PushNotification::from(self.clone(), Some(author), channel.id()).await,
         )
         .await;
 
@@ -437,8 +430,7 @@ impl Message {
         let media: Option<File> = if let Some(id) = embed.media {
             Some(
                 db.find_and_use_attachment(&id, "attachments", "message", &self.id)
-                    .await?
-                    .into(),
+                    .await?,
             )
         } else {
             None
@@ -540,17 +532,13 @@ impl From<SystemMessage> for String {
 }
 
 impl Interactions {
-    pub async fn validate(
-        &self,
-        db: &Database,
-        permissions: &mut PermissionCalculator<'_>,
-    ) -> Result<()> {
-        if let Some(reactions) = &self.reactions {
-            permissions
-                .throw_permission(db, ChannelPermission::React)
-                .await?;
+    pub async fn validate(&self, db: &Database, permissions: &PermissionValue) -> Result<()> {
+        let config = config().await;
 
-            if reactions.len() > 20 {
+        if let Some(reactions) = &self.reactions {
+            permissions.throw_if_lacking_channel_permission(ChannelPermission::React)?;
+
+            if reactions.len() > config.features.limits.default.message_reactions {
                 return Err(Error::InvalidOperation);
             }
 
@@ -608,11 +596,16 @@ impl BulkMessageResponse {
         db: &Database,
         channel: Option<&Channel>,
         messages: Vec<Message>,
+        user: &User,
         include_users: Option<bool>,
     ) -> Result<BulkMessageResponse> {
         if let Some(true) = include_users {
             let user_ids = messages.get_user_ids();
-            let users = User::fetch_foreign_users(db, &user_ids).await?;
+            let users = User::fetch_foreign_users(db, &user_ids)
+                .await?
+                .into_iter()
+                .map(|x| x.with_relationship(user))
+                .collect();
 
             Ok(match channel {
                 Some(Channel::TextChannel { server, .. })

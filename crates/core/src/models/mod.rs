@@ -37,12 +37,17 @@ pub mod servers {
     pub mod server_member;
 }
 
+pub mod webhooks {
+    pub mod webhook;
+}
+
 pub use admin::*;
 pub use channels::*;
 pub use media::*;
 pub use safety::*;
 pub use servers::*;
 pub use users::*;
+pub use webhooks::*;
 
 pub use attachment::File;
 pub use bot::Bot;

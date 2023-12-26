@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::File;
 
-#[derive(Serialize, Deserialize, Debug, Clone, OptionalStruct)]
+#[derive(Serialize, Deserialize, Debug, Clone, OptionalStruct, JsonSchema)]
 #[optional_derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
 #[optional_name = "PartialMember"]
 #[opt_skip_serializing_none]

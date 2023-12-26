@@ -106,6 +106,13 @@ pub static EARLY_ADOPTER_BADGE: Lazy<i64> = Lazy::new(|| {
         .unwrap()
 });
 
+pub static MAX_ROLE_COUNT: Lazy<usize> = Lazy::new(|| {
+    env::var("REVOLT_MAX_ROLE_COUNT")
+        .unwrap_or_else(|_| "200".to_string())
+        .parse()
+        .unwrap()
+});
+
 pub fn preflight_checks() {
     format!("url = {}", *APP_URL);
     format!("public = {}", *PUBLIC_URL);

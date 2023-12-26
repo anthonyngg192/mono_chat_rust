@@ -36,6 +36,7 @@ pub enum ReportedContent {
     User {
         id: String,
         report_reason: UserReportReason,
+        message_id: Option<String>,
     },
 }
 

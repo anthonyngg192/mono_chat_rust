@@ -708,7 +708,7 @@ dependencies = [
  "sentry",
  "serde",
  "serde_json",
- "ulid 0.5.0",
+ "ulid 1.1.0",
  "url-escape",
  "validator 0.16.0",
  "web-push",
@@ -4615,6 +4615,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "220b18413e1fe5e85a5580b22f44241f82404a66c792c9f3c9eda74c52d9a22e"
 dependencies = [
  "chrono",
+ "rand 0.8.5",
+]
+
+[[package]]
+name = "ulid"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e37c4b6cbcc59a8dcd09a6429fbc7890286bcbb79215cea7b38a3c4c0921d93"
+dependencies = [
  "rand 0.8.5",
 ]
 

@@ -1,4 +1,4 @@
-mod permission;
+pub mod permission;
 mod r#trait;
 mod user;
 

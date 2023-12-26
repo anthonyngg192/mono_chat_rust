@@ -2,7 +2,8 @@
 extern crate rocket;
 #[macro_use]
 extern crate revolt_rocket_okapi;
-// #[macro_use]
+
+#[macro_use]
 extern crate serde_json;
 
 pub mod routes;

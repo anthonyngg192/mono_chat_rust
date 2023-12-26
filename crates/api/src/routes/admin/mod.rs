@@ -4,5 +4,5 @@ use rocket::Route;
 mod stats;
 
 pub fn routes() -> (Vec<Route>, OpenApi) {
-    openapi_get_routes_spec![]
+    openapi_get_routes_spec![stats::stats]
 }

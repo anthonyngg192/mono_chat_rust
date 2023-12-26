@@ -4,9 +4,9 @@ use num_enum::TryFromPrimitive;
 use revolt_optional_struct::OptionalStruct;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use validator::Validate;
 
 use crate::{
-    auto_derived,
     models::{Channel, File},
     permissions::defn::OverrideField,
 };
@@ -33,7 +33,7 @@ pub struct Role {
     pub rank: i64,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, Default, Validate)]
 
 pub struct Category {
     #[validate(length(min = 1, max = 32))]
@@ -85,7 +85,7 @@ pub struct Server {
     pub channels: Vec<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub categories: Option<Vec<String>>,
+    pub categories: Option<Vec<Category>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_messages: Option<SystemMessageChannels>,
@@ -131,22 +131,25 @@ pub enum FieldsRole {
     Colour,
 }
 
-auto_derived! {
-    #[derive(Default)]
-    #[cfg_attr(feature = "validator", derive(Validate))]
-    pub struct DataCreateServer {
-        #[cfg_attr(feature = "validator", validate(length(min = 1, max = 32)))]
-        pub name: String,
+#[derive(Default, Validate, Serialize, Deserialize, JsonSchema)]
+pub struct DataCreateServer {
+    #[validate(length(min = 1, max = 32))]
+    pub name: String,
 
-        #[cfg_attr(feature = "validator", validate(length(min = 0, max = 1024)))]
-        pub description: Option<String>,
+    #[validate(length(min = 0, max = 1024))]
+    pub description: Option<String>,
 
-        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-        pub nsfw: Option<bool>,
-    }
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nsfw: Option<bool>,
+}
 
-    pub struct CreateServerLegacyResponse {
-        pub server: Server,
-        pub channels: Vec<Channel>,
-    }
+#[derive(Default, Validate, Serialize, Deserialize, JsonSchema)]
+pub struct CreateServerLegacyResponse {
+    pub server: Server,
+    pub channels: Vec<Channel>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DataPermissionsValue {
+    pub permissions: u64,
 }

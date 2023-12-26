@@ -6,8 +6,11 @@ use crate::{
         server_member::{FieldsMember, MemberCompositeKey, PartialMember},
         Channel, Member, Server, User,
     },
-    permissions::r#impl::permission::{calculate_channel_permissions, DatabasePermissionQuery},
-    ChannelPermission, Error, Result,
+    permissions::{
+        defn::ChannelPermission,
+        r#impl::permission::{calculate_channel_permissions, DatabasePermissionQuery},
+    },
+    Error, Result,
 };
 use iso8601_timestamp::Timestamp;
 
