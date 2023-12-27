@@ -1,6 +1,6 @@
 use chat_core::variables::delta::{
     APP_URL, AUTUMN_URL, EXTERNAL_WS_URL, HCAPTCHA_SITEKEY, INVITE_ONLY, JANUARY_URL, USE_AUTUMN,
-    USE_EMAIL, USE_HCAPTCHA, USE_JANUARY, USE_VOSO, VAPID_PUBLIC_KEY, VOSO_URL, VOSO_WS_HOST,
+    USE_EMAIL, USE_HCAPTCHA, USE_JANUARY, USE_VOSO, VOSO_URL, VOSO_WS_HOST,
 };
 use chat_core::Result;
 
@@ -55,7 +55,6 @@ pub struct ChatConfig {
     pub features: RevoltFeatures,
     pub ws: String,
     pub app: String,
-    pub vapid: String,
     pub build: BuildInformation,
 }
 
@@ -87,7 +86,6 @@ pub async fn root() -> Result<Json<ChatConfig>> {
         },
         ws: EXTERNAL_WS_URL.to_string(),
         app: APP_URL.to_string(),
-        vapid: VAPID_PUBLIC_KEY.to_string(),
         build: BuildInformation {
             commit_sha: option_env!("VERGEN_GIT_SHA")
                 .unwrap_or_else(|| "<failed to generate>")

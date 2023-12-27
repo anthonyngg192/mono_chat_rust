@@ -35,14 +35,7 @@ pub static HCAPTCHA_SITEKEY: Lazy<String> = Lazy::new(|| {
     env::var("REVOLT_HCAPTCHA_SITEKEY")
         .unwrap_or_else(|_| "10000000-ffff-ffff-ffff-000000000001".to_string())
 });
-pub static VAPID_PRIVATE_KEY: Lazy<String> = Lazy::new(|| {
-    env::var("REVOLT_VAPID_PRIVATE_KEY")
-        .expect("Missing REVOLT_VAPID_PRIVATE_KEY environment variable.")
-});
-pub static VAPID_PUBLIC_KEY: Lazy<String> = Lazy::new(|| {
-    env::var("REVOLT_VAPID_PUBLIC_KEY")
-        .expect("Missing REVOLT_VAPID_PUBLIC_KEY environment variable.")
-});
+
 pub static AUTHIFIER_SHIELD_KEY: Lazy<Option<String>> =
     Lazy::new(|| env::var("REVOLT_AUTHIFIER_SHIELD_KEY").ok());
 
@@ -117,9 +110,6 @@ pub fn preflight_checks() {
     format!("url = {}", *APP_URL);
     format!("public = {}", *PUBLIC_URL);
     format!("external = {}", *EXTERNAL_WS_URL);
-
-    format!("privkey = {}", *VAPID_PRIVATE_KEY);
-    format!("pubkey = {}", *VAPID_PUBLIC_KEY);
 
     if !(*USE_EMAIL) {
         #[cfg(not(debug_assertions))]
