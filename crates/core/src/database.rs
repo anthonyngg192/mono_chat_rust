@@ -1,6 +1,8 @@
-use crate::util::config::sys_config::config;
-
-use crate::{r#impl::MongoDb, AbstractDatabase};
+use crate::{
+    r#impl::MongoDb,
+    variables::delta::{MONGODB, MONGODB_DATABASE_NAME},
+    AbstractDatabase,
+};
 use std::ops::Deref;
 
 #[derive(Clone, Debug)]
@@ -17,24 +19,19 @@ pub enum DatabaseInfo {
 impl DatabaseInfo {
     #[async_recursion]
     pub async fn connect(self) -> Result<Database, String> {
-        let config = config().await;
         Ok(match self {
             DatabaseInfo::Auto => {
-                if !config.database.mongodb.is_empty() {
-                    DatabaseInfo::MongoDb {
-                        uri: config.database.mongodb,
-                        database_name: "revolt".to_string(),
-                    }
-                    .connect()
-                    .await?
-                } else {
-                    unreachable!("must specify REFERENCE or MONGODB")
+                DatabaseInfo::MongoDb {
+                    uri: MONGODB.to_string(),
+                    database_name: MONGODB_DATABASE_NAME.to_string(),
                 }
+                .connect()
+                .await?
             }
             DatabaseInfo::MongoDb { uri, database_name } => {
                 let client = ::mongodb::Client::with_uri_str(uri)
                     .await
-                    .map_err(|_| "Failed to init db connection.".to_string())?;
+                    .map_err(|_err| "Failed to init db connection.".to_string())?;
 
                 Database::MongoDb(MongoDb(client, database_name))
             }

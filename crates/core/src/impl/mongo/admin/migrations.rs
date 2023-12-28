@@ -15,7 +15,7 @@ impl AbstractMigrations for MongoDb {
             .await
             .expect("Failed to fetch data");
 
-        if list.iter().any(|x| x == "rust_chatting") {
+        if list.iter().any(|x| x == "rust_demo") {
             scripts::migrate_database(self).await;
         } else {
             init::create_database(self).await;

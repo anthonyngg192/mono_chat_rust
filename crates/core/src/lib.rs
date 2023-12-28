@@ -40,7 +40,6 @@ pub use presence::*;
 pub use traits::*;
 
 pub use util::{
-    config::sys_config,
     r#ref::Ref,
     result::{Error, Result},
     variables,

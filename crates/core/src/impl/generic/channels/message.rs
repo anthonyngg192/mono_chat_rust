@@ -14,13 +14,13 @@ use crate::{
     },
     permissions::{defn::ChannelPermission, r#impl::PermissionValue},
     presence::presence_filter_online,
-    sys_config::config,
     tasks::{self, ack::AckEvent},
     types::{
         january::{Embed, Text},
         push::PushNotification,
     },
     util::idempotency::IdempotencyKey,
+    variables::delta::MONO_CHAT_MAX_MESSAGE_REACTS,
     Error, Result,
 };
 
@@ -533,12 +533,10 @@ impl From<SystemMessage> for String {
 
 impl Interactions {
     pub async fn validate(&self, db: &Database, permissions: &PermissionValue) -> Result<()> {
-        let config = config().await;
-
         if let Some(reactions) = &self.reactions {
             permissions.throw_if_lacking_channel_permission(ChannelPermission::React)?;
 
-            if reactions.len() > config.features.limits.default.message_reactions {
+            if reactions.len() > *MONO_CHAT_MAX_MESSAGE_REACTS {
                 return Err(Error::InvalidOperation);
             }
 

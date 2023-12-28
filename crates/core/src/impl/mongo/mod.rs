@@ -65,7 +65,7 @@ impl Deref for MongoDb {
 
 impl MongoDb {
     pub fn db(&self) -> mongodb::Database {
-        self.database("revolt")
+        self.database("rust_demo")
     }
 
     pub fn col<T>(&self, collection: &str) -> mongodb::Collection<T> {

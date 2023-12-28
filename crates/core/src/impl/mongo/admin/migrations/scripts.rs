@@ -16,7 +16,7 @@ use crate::{
 
 #[derive(Serialize, Deserialize)]
 struct MigrationInfo {
-    _id: i32,
+    // _id: String,
     revision: i32,
 }
 
@@ -38,7 +38,7 @@ pub async fn migrate_database(db: &MongoDb) {
         migrations
             .update_one(
                 doc! {
-                    "_id": info._id
+                    // "_id": info._id
                 },
                 doc! {
                     "$set": {

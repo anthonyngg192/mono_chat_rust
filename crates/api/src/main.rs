@@ -30,7 +30,7 @@ pub async fn web() -> Rocket<Build> {
     let authifier = Authifier {
         database: match db.clone() {
             Database::MongoDb(MongoDb(client, _)) => authifier::Database::MongoDb(
-                authifier::database::MongoDb(client.database("revolt")),
+                authifier::database::MongoDb(client.database("rust_demo")),
             ),
         },
         config: chat_core::util::authifier::config(),
@@ -94,7 +94,7 @@ pub async fn web() -> Rocket<Build> {
         .mount("/swagger/", swagger)
         .manage(authifier)
         .manage(db)
-        .manage(legacy_db)
+        // .manage(legacy_db)
         .manage(cors.clone())
         .attach(util::ratelimiter::RatelimitFairing)
         .attach(cors)

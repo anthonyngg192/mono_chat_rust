@@ -1,7 +1,7 @@
 use async_std::stream::StreamExt;
 use bson::{doc, from_document, Document};
 
-// use super::super::MongoDb;
+use super::super::MongoDb;
 use crate::{
     models::stats::{Index, Stats},
     traits::AbstractStats,
@@ -10,7 +10,7 @@ use crate::{
 use std::collections::HashMap;
 
 #[async_trait]
-impl AbstractStats for super::super::MongoDb {
+impl AbstractStats for MongoDb {
     async fn generate_stats(&self) -> Result<Stats> {
         let mut indices = HashMap::new();
         let mut coll_stats = HashMap::new();

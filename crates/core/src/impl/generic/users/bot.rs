@@ -8,7 +8,7 @@ use crate::{
         user::{BotInformation, PartialUser},
         Bot, User,
     },
-    sys_config::config,
+    variables::delta::MAX_BOT_COUNT,
     Error, Result,
 };
 
@@ -50,8 +50,7 @@ impl Bot {
             return Err(Error::IsBot);
         }
 
-        let config = config().await;
-        if db.get_number_of_bots_by_user(&owner.id).await? >= config.features.limits.default.bots {
+        if db.get_number_of_bots_by_user(&owner.id).await? >= *MAX_BOT_COUNT {
             return Err(Error::ReachedMaximumBots);
         }
 

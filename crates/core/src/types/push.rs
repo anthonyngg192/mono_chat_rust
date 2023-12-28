@@ -2,7 +2,6 @@ use std::time::SystemTime;
 
 use crate::{
     models::{message::MessageAuthor, Message},
-    sys_config::config,
     variables::delta::{APP_URL, AUTUMN_URL, PUBLIC_URL},
 };
 use serde::{Deserialize, Serialize};
@@ -65,22 +64,20 @@ impl PushNotification {
     }
 
     pub async fn from(msg: Message, author: Option<MessageAuthor<'_>>, channel_id: &str) -> Self {
-        let config = config().await;
-
         let icon = if let Some(author) = &author {
             if let Some(avatar) = author.avatar() {
-                format!("{}/avatars/{}", config.hosts.autumn, avatar)
+                format!("{}/avatars/{}", *AUTUMN_URL, avatar)
             } else {
-                format!("{}/users/{}/default_avatar", config.hosts.api, author.id())
+                format!("{}/users/{}/default_avatar", *PUBLIC_URL, author.id())
             }
         } else {
-            format!("{}/assets/logo.png", config.hosts.app)
+            format!("{}/assets/logo.png", *APP_URL)
         };
 
         let image = msg.attachments.and_then(|attachments| {
             attachments
                 .first()
-                .map(|v| format!("{}/attachments/{}", config.hosts.autumn, v.id))
+                .map(|v| format!("{}/attachments/{}", *AUTUMN_URL, v.id))
         });
 
         let body = if let Some(sys) = msg.system {
@@ -105,7 +102,7 @@ impl PushNotification {
             body,
             tag: channel_id.to_string(),
             timestamp,
-            url: format!("{}/channel/{}/{}", config.hosts.app, channel_id, msg.id),
+            url: format!("{}/channel/{}/{}", *APP_URL, channel_id, msg.id),
         }
     }
 }

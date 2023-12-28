@@ -13,8 +13,8 @@ use crate::{
         Channel, Server, User,
     },
     permissions::defn::OverrideField,
-    sys_config::config,
     tasks::ack::AckEvent,
+    variables::delta::{MAX_GROUP_SIZE, MAX_SERVER_COUNT},
     Error, Result,
 };
 
@@ -302,10 +302,9 @@ impl Channel {
         data: DataCreateServerChannel,
         update_server: bool,
     ) -> Result<Channel> {
-        let config = config().await;
-        if server.channels.len() > config.features.limits.default.server_channels {
+        if server.channels.len() > *MAX_SERVER_COUNT {
             return Err(Error::TooManyChannels {
-                max: config.features.limits.default.server_channels,
+                max: *MAX_SERVER_COUNT,
             });
         };
 
@@ -432,10 +431,9 @@ impl Channel {
     ) -> Result<Channel> {
         data.users.insert(owner_id.to_string());
 
-        let config = config().await;
-        if data.users.len() > config.features.limits.default.group_size {
+        if data.users.len() > *MAX_GROUP_SIZE {
             return Err(Error::GroupTooLarge {
-                max: config.features.limits.default.group_size,
+                max: *MAX_GROUP_SIZE,
             });
         }
 

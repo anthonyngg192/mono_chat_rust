@@ -1,4 +1,7 @@
-use crate::{sys_config::config, types::push::PushNotification};
+use crate::{
+    types::push::PushNotification,
+    variables::delta::{FCM_API_KEY, VAPID_PRIVATE_KEY},
+};
 use authifier::Database;
 use base64::{engine, Engine};
 use deadqueue::limited::Queue;
@@ -32,17 +35,11 @@ pub async fn queue(recipients: Vec<String>, payload: PushNotification) {
 }
 
 pub async fn worker(db: Database) {
-    let config = config().await;
-
     let web_push_client = IsahcWebPushClient::new().unwrap();
-    let fcm_client = if config.api.fcm.api_key.is_empty() {
-        None
-    } else {
-        Some(fcm::Client::new())
-    };
+    let fcm_client = fcm::Client::new();
 
     let web_push_private_key = engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(config.api.vapid.private_key)
+        .decode(VAPID_PRIVATE_KEY.to_string())
         .expect("valid `VALID_PRIVATE_KEY");
 
     loop {
@@ -52,35 +49,31 @@ pub async fn worker(db: Database) {
             for session in sessions {
                 if let Some(sub) = session.subscription {
                     if sub.endpoint == "fcm" {
-                        if let Some(client) = &fcm_client {
-                            let PushNotification {
-                                author,
-                                icon,
-                                image: _,
-                                body,
-                                tag,
-                                timestamp: _,
-                                url: _,
-                            } = &task.payload;
-                            let mut notification = fcm::NotificationBuilder::new();
-                            notification.title(author);
-                            notification.icon(icon);
-                            notification.body(body);
-                            notification.tag(tag);
-                            // TODO: expand support for fields
-                            let notification = notification.finalize();
+                        let client = &fcm_client;
+                        let PushNotification {
+                            author,
+                            icon,
+                            image: _,
+                            body,
+                            tag,
+                            timestamp: _,
+                            url: _,
+                        } = &task.payload;
+                        let mut notification = fcm::NotificationBuilder::new();
+                        notification.title(author);
+                        notification.icon(icon);
+                        notification.body(body);
+                        notification.tag(tag);
+                        // TODO: expand support for fields
+                        let notification = notification.finalize();
 
-                            let mut message_builder =
-                                fcm::MessageBuilder::new(&config.api.fcm.api_key, &sub.auth);
-                            message_builder.notification(notification);
+                        let mut message_builder = fcm::MessageBuilder::new(&FCM_API_KEY, &sub.auth);
+                        message_builder.notification(notification);
 
-                            if let Err(err) = client.send(message_builder.finalize()).await {
-                                error!("Failed to send FCM notification! {:?}", err);
-                            } else {
-                                info!("Sent FCM notification to {:?}.", session.id);
-                            }
+                        if let Err(err) = client.send(message_builder.finalize()).await {
+                            error!("Failed to send FCM notification! {:?}", err);
                         } else {
-                            info!("No FCM token was specified")
+                            info!("Sent FCM notification to {:?}.", session.id);
                         }
                     } else {
                         let subscription = SubscriptionInfo {

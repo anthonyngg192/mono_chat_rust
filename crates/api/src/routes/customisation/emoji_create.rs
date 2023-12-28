@@ -7,7 +7,7 @@ use chat_core::{
         defn::ChannelPermission,
         r#impl::permission::{calculate_server_permissions, DatabasePermissionQuery},
     },
-    util::config::sys_config::config,
+    variables::delta::MONO_CHAT_MAX_SERVER_EMOJI,
     Database, Error, Result,
 };
 use rocket::{serde::json::Json, State};
@@ -21,8 +21,6 @@ pub async fn create_emoji(
     id: String,
     data: Json<DataCreateEmoji>,
 ) -> Result<Json<Emoji>> {
-    let config = config().await;
-
     let data = data.into_inner();
 
     data.validate()
@@ -42,7 +40,7 @@ pub async fn create_emoji(
                 .throw_if_lacking_channel_permission(ChannelPermission::ManageCustomisation)?;
 
             let emojis = db.fetch_emoji_by_parent_id(&server.id).await?;
-            if emojis.len() > config.features.limits.default.server_emoji {
+            if emojis.len() > *MONO_CHAT_MAX_SERVER_EMOJI {
                 return Err(Error::TooManyEmoji);
             }
         }

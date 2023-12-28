@@ -1,5 +1,4 @@
 pub mod authifier;
-pub mod config;
 pub mod idempotency;
 pub mod log;
 pub mod r#macro;

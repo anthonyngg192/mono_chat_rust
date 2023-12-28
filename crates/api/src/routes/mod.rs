@@ -163,45 +163,14 @@ fn custom_openapi_spec() -> OpenApi {
     OpenApi {
         openapi: OpenApi::default_version(),
         info: Info {
-            title: "Revolt API".to_owned(),
-            description: Some("Open source user-first chat platform.".to_owned()),
-            terms_of_service: Some("https://revolt.chat/terms".to_owned()),
-            contact: Some(Contact {
-                name: Some("Revolt Support".to_owned()),
-                url: Some("https://revolt.chat".to_owned()),
-                email: Some("contact@revolt.chat".to_owned()),
-                ..Default::default()
-            }),
-            license: Some(License {
-                name: "AGPLv3".to_owned(),
-                url: Some("https://github.com/revoltchat/delta/blob/master/LICENSE".to_owned()),
-                ..Default::default()
-            }),
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            title: "Mono Chat API".to_owned(),
             ..Default::default()
         },
-        servers: vec![
-            Server {
-                url: "https://api.revolt.chat".to_owned(),
-                description: Some("Revolt Production".to_owned()),
-                ..Default::default()
-            },
-            Server {
-                url: "https://revolt.chat/api".to_owned(),
-                description: Some("Revolt Staging".to_owned()),
-                ..Default::default()
-            },
-            Server {
-                url: "http://local.revolt.chat:8000".to_owned(),
-                description: Some("Local Revolt Environment".to_owned()),
-                ..Default::default()
-            },
-        ],
-        external_docs: Some(ExternalDocs {
-            url: "https://developers.revolt.chat".to_owned(),
-            description: Some("Revolt Developer Documentation".to_owned()),
+        servers: vec![Server {
+            url: "http://127.0.0.1:8000".to_owned(),
+            description: Some("Local Environment".to_owned()),
             ..Default::default()
-        }),
+        }],
         extensions,
         tags: vec![
             Tag {
