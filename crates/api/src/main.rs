@@ -2,6 +2,7 @@ use std::{net::Ipv4Addr, str::FromStr};
 
 use async_std::channel::unbounded;
 use authifier::{Authifier, AuthifierEvent};
+use chat_core::variables::delta::PUBLIC_URL;
 use chat_core::{events::client::EventV1, r#impl::MongoDb, Database, DatabaseInfo};
 use rocket::data::ToByteUnit;
 use rocket::{Build, Rocket};
@@ -86,6 +87,9 @@ pub async fn web() -> Rocket<Build> {
     let rocket = rocket::build();
     let prometheus = PrometheusMetrics::new();
 
+    let source = PUBLIC_URL.clone();
+    let letters = source.split(':').collect::<Vec<&str>>();
+
     routes::mount(rocket)
         .attach(prometheus.clone())
         .mount("/metrics", prometheus)
@@ -101,6 +105,7 @@ pub async fn web() -> Rocket<Build> {
         .configure(rocket::Config {
             limits: rocket::data::Limits::default().limit("string", 5.megabytes()),
             address: Ipv4Addr::new(0, 0, 0, 0).into(),
+            port: letters[1].to_owned().parse::<u16>().unwrap(),
             ..Default::default()
         })
 }

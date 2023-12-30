@@ -4,7 +4,7 @@ extern crate lazy_static;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
 use log::info;
-use util::variables::HOST;
+use util::variables::JANUARY_PUBLIC_URL;
 
 pub mod routes;
 pub mod structs;
@@ -17,7 +17,8 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
 
     info!("Starting January server.");
-    info!("Server working on {}.", *HOST);
+    let addr = JANUARY_PUBLIC_URL.to_string();
+    info!("Server working on {}.", addr);
 
     HttpServer::new(|| {
         App::new()
@@ -26,7 +27,7 @@ async fn main() -> std::io::Result<()> {
             .route("/embed", web::get().to(routes::embed::get))
             .route("/proxy", web::get().to(routes::proxy::get))
     })
-    .bind(HOST.clone())?
+    .bind(JANUARY_PUBLIC_URL.clone())?
     .run()
     .await
 }
