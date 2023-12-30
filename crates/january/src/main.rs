@@ -17,6 +17,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
 
     info!("Starting January server.");
+    info!("Server working on {}.", *HOST);
 
     HttpServer::new(|| {
         App::new()
