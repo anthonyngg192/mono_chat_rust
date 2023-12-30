@@ -8,14 +8,14 @@ use mediasoup::prelude::TransportListenIps;
 
 lazy_static! {
     // HTTP API
-    pub static ref HTTP_HOST: SocketAddr = env::var("HTTP_HOST")
+    pub static ref HTTP_HOST: SocketAddr = env::var("VOSO_PUBLIC_URL")
         .unwrap_or_else(|_| "0.0.0.0:8080".to_string())
         .parse()
-        .expect("HTTP_HOST environment variable is not a valid IP:port");
+        .expect("VOSO_PUBLIC_URL environment variable is not a valid IP:port");
     pub static ref WS_URL: String =
-        env::var("WS_URL").expect("Missing WS_URL environment variable.");
+        env::var("MONO_CHAT_EXTERNAL_WS_URL").expect("Missing WS_URL environment variable.");
     pub static ref MANAGE_TOKEN: String =
-        env::var("MANAGE_TOKEN").expect("Missing MANAGE_TOKEN environment variable.");
+        env::var("VOSO_MANAGE_TOKEN").expect("Missing VOSO_MANAGE_TOKEN environment variable.");
 
     // RTC
     pub static ref RTC_IPS: TransportListenIps = {

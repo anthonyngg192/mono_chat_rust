@@ -99,8 +99,10 @@ async fn handle(
 
                             ws_sink
                                 .send(
-                                    WSReplyType::InitializeTransports { reply_data }
-                                        .get_message(out.id)?,
+                                    WSReplyType::InitializeTransports {
+                                        reply_data: Box::new(reply_data),
+                                    }
+                                    .get_message(out.id)?,
                                 )
                                 .await?;
                             break rtc_state;

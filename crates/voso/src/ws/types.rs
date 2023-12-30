@@ -93,7 +93,7 @@ pub enum WSReplyType {
     },
 
     InitializeTransports {
-        reply_data: TransportInitData,
+        reply_data: Box<TransportInitData>,
     },
     ConnectTransport,
 

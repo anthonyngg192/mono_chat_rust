@@ -19,7 +19,7 @@ async fn main() {
 
     presence_clear_region(None).await;
 
-    let bind = env::var("HOST").unwrap_or_else(|_| "0.0.0.0:9000".into());
+    let bind = env::var("MONO_CHAT_EXTERNAL_WS_URL").unwrap_or_else(|_| "0.0.0.0:9000".into());
     info!("Listening on host {bind}");
 
     let try_socket = TcpListener::bind(bind).await;
