@@ -66,7 +66,7 @@ pub enum WSCommandType {
 }
 
 impl WSReplyType {
-    pub fn to_message(self, command_id: Option<u64>) -> Result<Message, serde_json::Error> {
+    pub fn get_message(self, command_id: Option<u64>) -> Result<Message, serde_json::Error> {
         let reply = WSReply {
             id: command_id,
             reply_type: self,
@@ -83,8 +83,7 @@ pub struct WSReply {
     pub reply_type: WSReplyType,
 }
 
-#[derive(Serialize)]
-#[serde(tag = "type", content = "data")]
+#[derive(Serialize, Deserialize)]
 pub enum WSReplyType {
     Authenticate {
         vortex_version: &'static str,
@@ -119,19 +118,16 @@ pub enum WSReplyType {
     SetConsumerPause,
 }
 
-impl WSReplyType {}
-
-#[derive(Serialize)]
-#[serde(tag = "type", content = "data")]
+#[derive(Serialize, Deserialize)]
 pub enum WSEvent {
-    UserJoined {
+    Joined {
         id: String,
     },
-    UserLeft {
+    Left {
         id: String,
     },
 
-    UserStartProduce {
+    StartProduce {
         id: String,
         #[serde(rename = "type")]
         produce_type: ProduceType,

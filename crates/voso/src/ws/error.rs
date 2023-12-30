@@ -45,7 +45,7 @@ pub enum WSErrorType {
 }
 
 impl WSErrorType {
-    pub fn to_message(self, command: WSCommand) -> Result<Message, serde_json::Error> {
+    pub fn get_message(self, command: WSCommand) -> Result<Message, serde_json::Error> {
         let error = WSError::from(command, self);
         Ok(Message::text(serde_json::to_string(&error)?))
     }

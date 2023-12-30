@@ -70,7 +70,7 @@ async fn handle(
                                         .rtp_capabilities()
                                         .clone(),
                                 }
-                                .to_message(out.id)?,
+                                .get_message(out.id)?,
                             )
                             .await?;
                         break (room, id);
@@ -100,7 +100,7 @@ async fn handle(
                             ws_sink
                                 .send(
                                     WSReplyType::InitializeTransports { reply_data }
-                                        .to_message(out.id)?,
+                                        .get_message(out.id)?,
                                 )
                                 .await?;
                             break rtc_state;
@@ -145,11 +145,11 @@ async fn event_loop(
                                                 let result = rtc_state.connect_transport(connect_data).await;
                                                 if result.is_ok(){
                                                     ws_sink.send(
-                                                        WSReplyType::ConnectTransport.to_message(out.id)?
+                                                        WSReplyType::ConnectTransport.get_message(out.id)?
                                                     ).await?;
                                                 }else{
                                                     ws_sink.send(
-                                                        WSErrorType::TransportConnectionFailure.to_message(out)?
+                                                        WSErrorType::TransportConnectionFailure.get_message(out)?
                                                     ).await?;
                                                 }
                                             },
@@ -170,13 +170,13 @@ async fn event_loop(
                                                         room.send_event(RoomEvent::UserStartProduce(user_id.to_string(), *produce_type));
 
                                                         ws_sink.send(
-                                                            WSReplyType::StartProduce { producer_id }.to_message(out.id)?
+                                                            WSReplyType::StartProduce { producer_id }.get_message(out.id)?
                                                         ).await?;
                                                     },
                                                     Err(err) => {
                                                         error!("Error while trying to start produce for user {}: {:?}", user_id, err);
                                                         ws_sink.send(
-                                                            WSErrorType::ProducerFailure.to_message(out)?
+                                                            WSErrorType::ProducerFailure.get_message(out)?
                                                         ).await?;
                                                     }
                                                 }
@@ -194,11 +194,11 @@ async fn event_loop(
                                                         mut_user.set_producer(*produce_type, None).ok();
                                                         room.send_event(RoomEvent::UserStopProduce(user_id.to_string(), *produce_type));
                                                         ws_sink.send(
-                                                            WSReplyType::StopProduce.to_message(out.id)?
+                                                            WSReplyType::StopProduce.get_message(out.id)?
                                                         ).await?;
                                                     },
                                                     None => ws_sink.send(
-                                                        WSErrorType::ProducerNotFound.to_message(out)?
+                                                        WSErrorType::ProducerNotFound.get_message(out)?
                                                     ).await?,
                                                 }
                                             },
@@ -219,28 +219,28 @@ async fn event_loop(
                                                                                 producer_id: consumer.producer_id(),
                                                                                 kind: consumer.kind(),
                                                                                 rtp_parameters: consumer.rtp_parameters().clone(),
-                                                                            }.to_message(out.id)?
+                                                                            }.get_message(out.id)?
                                                                         ).await?,
                                                                         Err(err) => {
                                                                             error!("Error while trying to start produce: {:?}", err);
                                                                             ws_sink.send(
-                                                                                WSErrorType::ProducerFailure.to_message(out)?
+                                                                                WSErrorType::ProducerFailure.get_message(out)?
                                                                             ).await?;
                                                                         }
                                                                     };
                                                                 } else {
                                                                     ws_sink.send(
-                                                                        WSErrorType::ConsumerFailure.to_message(out)?
+                                                                        WSErrorType::ConsumerFailure.get_message(out)?
                                                                     ).await?;
                                                                 }
                                                             },
                                                             None => ws_sink.send(
-                                                                WSErrorType::ProducerNotFound.to_message(out)?
+                                                                WSErrorType::ProducerNotFound.get_message(out)?
                                                             ).await?,
                                                         }
                                                     },
                                                     None => ws_sink.send(
-                                                        WSErrorType::UserNotFound(producing_id).to_message(out)?
+                                                        WSErrorType::UserNotFound(producing_id).get_message(out)?
                                                     ).await?,
                                                 };
                                             },
@@ -248,10 +248,10 @@ async fn event_loop(
                                                 let id = *id;
                                                 match rtc_state.stop_consume(&id) {
                                                     Ok(_) => ws_sink.send(
-                                                        WSReplyType::StopConsume.to_message(out.id)?
+                                                        WSReplyType::StopConsume.get_message(out.id)?
                                                     ).await?,
                                                     Err(_) => ws_sink.send(
-                                                        WSErrorType::ConsumerNotFound(id.to_string()).to_message(out)?
+                                                        WSErrorType::ConsumerNotFound(id.to_string()).get_message(out)?
                                                     ).await?,
                                                 }
                                             },
@@ -259,10 +259,10 @@ async fn event_loop(
                                                 let id = *id;
                                                 match rtc_state.set_consumer_pause(&id, *paused).await {
                                                     Ok(_) => ws_sink.send(
-                                                        WSReplyType::SetConsumerPause.to_message(out.id)?
+                                                        WSReplyType::SetConsumerPause.get_message(out.id)?
                                                     ).await?,
                                                     Err(_) => ws_sink.send(
-                                                        WSErrorType::ConsumerNotFound(id.to_string()).to_message(out)?
+                                                        WSErrorType::ConsumerNotFound(id.to_string()).get_message(out)?
                                                     ).await?,
                                                 }
                                             },
@@ -278,7 +278,7 @@ async fn event_loop(
                                 match event{
                                     RoomEvent::UserJoined(id) => {
                                         if id != user_id {
-                                            let event = WSEvent::UserJoined { id };
+                                            let event = WSEvent::Joined { id };
                                             ws_sink
                                                 .send(Message::text(serde_json::to_string(&event)?))
                                                 .await?;
@@ -289,14 +289,14 @@ async fn event_loop(
                                             return Err(WSCloseType::Kicked);
                                         }
 
-                                        let event = WSEvent::UserLeft { id };
+                                        let event = WSEvent::Left { id };
                                         ws_sink
                                             .send(Message::text(serde_json::to_string(&event)?))
                                             .await?;
                                     },
                                     RoomEvent::UserStartProduce(id, produce_type) => {
                                         if id != user_id {
-                                            let event = WSEvent::UserStartProduce { id, produce_type };
+                                            let event = WSEvent::StartProduce { id, produce_type };
                                             ws_sink
                                                 .send(Message::text(serde_json::to_string(&event)?))
                                                 .await?;
@@ -340,7 +340,7 @@ async fn room_info(
                 video_allowed: false,
                 users: user_info,
             }
-            .to_message(c.id)?,
+            .get_message(c.id)?,
         )
         .await?;
     Ok(())

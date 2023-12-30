@@ -7,7 +7,6 @@ use mediasoup::sctp_parameters::SctpParameters;
 use mediasoup::srtp_parameters::SrtpParameters;
 
 #[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
 pub struct InitializationInput {
     pub(super) rtp_capabilities: RtpCapabilities,
 
@@ -28,11 +27,9 @@ pub enum InitializationInputMode {
     CombinedRtp,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(untagged)]
-#[serde(rename_all = "camelCase")]
 pub enum TransportInitData {
-    #[serde(rename_all = "camelCase")]
     SplitWebRtc {
         send_transport: WebRtcTransportInitData,
         recv_transport: WebRtcTransportInitData,
@@ -40,8 +37,6 @@ pub enum TransportInitData {
     CombinedWebRtc {
         transport: WebRtcTransportInitData,
     },
-
-    #[serde(rename_all = "camelCase")]
     CombinedRtp {
         ip: IpAddr,
         port: u16,
@@ -51,8 +46,7 @@ pub enum TransportInitData {
     },
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Serialize, Deserialize)]
 pub struct WebRtcTransportInitData {
     pub id: TransportId,
     pub ice_parameters: IceParameters,

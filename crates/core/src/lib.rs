@@ -8,10 +8,12 @@ extern crate async_recursion;
 extern crate log;
 #[macro_use]
 extern crate impl_ops;
+
 // #[macro_use]
 extern crate revolt_optional_struct;
 #[macro_use]
 extern crate bitfield;
+
 #[macro_use]
 extern crate bson;
 

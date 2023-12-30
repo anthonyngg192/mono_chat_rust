@@ -47,34 +47,34 @@ pub enum Special {
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct Metadata {
     #[serde(skip_serializing_if = "Option::is_none")]
-    url: Option<String>,
+    pub url: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    original_url: Option<String>,
+    pub original_url: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    special: Option<Special>,
+    pub special: Option<Special>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    title: Option<String>,
+    pub title: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    image: Option<Image>,
+    pub image: Option<Image>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    video: Option<Video>,
+    pub video: Option<Video>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    site_name: Option<String>,
+    pub site_name: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    icon_url: Option<String>,
+    pub icon_url: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    colour: Option<String>,
+    pub colour: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]

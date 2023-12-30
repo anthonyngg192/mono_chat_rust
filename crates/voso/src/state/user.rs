@@ -116,7 +116,7 @@ impl User {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UserInfo {
     audio: bool,
 }
