@@ -46,14 +46,14 @@ apps() {
   touch -am \
     crates/core/src/lib.rs \
     crates/api/src/main.rs \
-    crates/core/january/src/main.rs \
+    crates/core/january/src/main.rs \f
     crates/core/voso/src/main.rs \
     crates/core/voso/socket/main.rs
   
   if [ -z "$TARGETARCH" ]; then
     cargo build --locked --release
   else
-    cargo build --locked --release --target "${BUILD_TARGET}"
+    cargo build --locked --release
     mv target _target && mv _target/"${BUILD_TARGET}" target
   fi
 }

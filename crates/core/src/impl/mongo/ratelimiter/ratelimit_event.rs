@@ -7,7 +7,6 @@ use ulid::Ulid;
 
 use crate::{
     models::ratelimit_events::ratelimit::{RatelimitEvent, RatelimitEventType},
-    query,
     ratelimiter::ratelimit::AbstractRatelimitEvent,
     Error, Result,
 };
@@ -18,7 +17,7 @@ use super::super::MongoDb;
 #[async_trait]
 impl AbstractRatelimitEvent for MongoDb {
     async fn insert_ratelimit_event(&self, event: &RatelimitEvent) -> Result<()> {
-        query!(self, insert_one, COL, &event).map(|_| ())
+        self.insert_one(COL, event).await.map(|_| ())
     }
 
     async fn has_ratelimited(

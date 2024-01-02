@@ -1,6 +1,5 @@
 use crate::{
     models::channel::{FieldsWebhook, PartialWebhook, Webhook},
-    query,
     r#impl::{mongo::IntoDocumentPath, MongoDb},
     AbstractWebhook, Error, Result,
 };
@@ -11,12 +10,11 @@ static COL: &str = "channel_webhooks";
 #[async_trait]
 impl AbstractWebhook for MongoDb {
     async fn insert_webhook(&self, webhook: &Webhook) -> Result<()> {
-        query!(self, insert_one, COL, &webhook).map(|_| ())
+        self.insert_one(COL, webhook).await.map(|_| ())
     }
 
     async fn fetch_webhook(&self, webhook_id: &str) -> Result<Webhook> {
         self.find_one_by_id(COL, webhook_id).await
-        // query!(self, find_one_by_id, COL, webhook_id)?.ok_or_else(|| Error::NotFound)
     }
 
     async fn fetch_webhooks_for_channel(&self, channel_id: &str) -> Result<Vec<Webhook>> {
@@ -50,20 +48,19 @@ impl AbstractWebhook for MongoDb {
         partial: &PartialWebhook,
         remove: &[FieldsWebhook],
     ) -> Result<()> {
-        query!(
-            self,
-            update_one_by_id,
+        self.update_one_by_id(
             COL,
             webhook_id,
             partial,
             remove.iter().map(|x| x as &dyn IntoDocumentPath).collect(),
-            None
+            None,
         )
+        .await
         .map(|_| ())
     }
 
     async fn delete_webhook(&self, webhook_id: &str) -> Result<()> {
-        query!(self, delete_one_by_id, COL, webhook_id).map(|_| ())
+        self.delete_one_by_id(COL, webhook_id).await.map(|_| ())
     }
 }
 
