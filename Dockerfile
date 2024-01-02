@@ -19,7 +19,6 @@ RUN sh /tmp/build-image-layer.sh tools
 COPY Cargo.toml Cargo.lock ./
 COPY crates/api/Cargo.toml ./crates/api/
 COPY crates/core/Cargo.toml ./crates/core/
-COPY crates/voso/Cargo.toml ./crates/voso/
 COPY crates/january/Cargo.toml ./crates/january/
 COPY crates/socket/Cargo.toml ./crates/socket/
 RUN sh /tmp/build-image-layer.sh deps

@@ -25,14 +25,12 @@ deps() {
     crates/api/src \
     crates/core/src \
     crates/january/src \
-    crates/socket/src \
-    crates/voso/src 
+    crates/socket/src 
   echo 'fn main() { panic!("stub"); }' |
     tee crates/api/src/main.rs |
-    tee crates/voso/src/main.rs |
     tee crates/socket/src/main.rs |
     tee crates/january/src/main.rs
-  echo '' |
+  echo 
     tee crates/core/src/lib.rs 
   
   if [ -z "$TARGETARCH" ]; then
@@ -46,8 +44,7 @@ apps() {
   touch -am \
     crates/core/src/lib.rs \
     crates/api/src/main.rs \
-    crates/core/january/src/main.rs \f
-    crates/core/voso/src/main.rs \
+    crates/january/src/main.rs \
     crates/core/voso/socket/main.rs
   
   if [ -z "$TARGETARCH" ]; then

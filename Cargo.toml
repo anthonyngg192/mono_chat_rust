@@ -1,12 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-    "crates/api",
-    "crates/core",
-    "crates/socket",
-    "crates/voso",
-    "crates/january",
-]
+members = ["crates/api", "crates/core", "crates/socket", "crates/january"]
 
 [patch.crates-io]
 redis22 = { package = "redis", version = "0.22.3", git = "https://github.com/revoltchat/redis-rs", rev = "1a41faf356fd21aebba71cea7eb7eb2653e5f0ef" }
